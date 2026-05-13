@@ -536,6 +536,7 @@
     - 常见日期/时间/版本号：[`leakDatePattern`](service/leak_protection.go:19)、[`leakTimePattern`](service/leak_protection.go:20)、[`leakVersionPattern`](service/leak_protection.go:21)
     - 纯 URL：[`isLeakProtectionURL()`](service/leak_protection.go:318)
     - 纯字母自然词：[`isLeakProtectionNaturalWord()`](service/leak_protection.go:326)
+    - 类单词串：[`isLeakProtectionWordLikeCandidate()`](service/leak_protection.go:353) 对明显像人写标识的“单词 + 少量数字/连接符”做额外豁免，例如 `hello123`、`my-token`、`user_name`；但带 `+/=:` 的 token 样式串、过长串、无元音/重复度过高的伪单词仍不会放过。
   - UUID 复合串：[`isLeakProtectionUUIDComposite()`](service/leak_protection.go:276) 对包含 `uuid` 且带 `-` / `_` / `:` 的复合串直接判定为风险，满足“`abc-uuid` / `abc_uuid` 可拦”的要求。
   - 字段名提示只降阈值：[`hasLeakProtectionCredentialHint()`](service/leak_protection.go:282) 仅检查候选附近窗口是否出现 `api_key/token/secret/password/authorization/...` 等提示词；真正的判定仍在 [`isHighEntropyLeakProtectionCandidate(candidate, hasHint)`](service/leak_protection.go:297) 内，提示词只会降低熵阈值，不会单独触发拦截。
   - 熵值判定：[`leakProtectionEntropy()`](service/leak_protection.go:362) 计算 Shannon entropy；[`leakProtectionClassCount()`](service/leak_protection.go:335) 统计字符类型数。当前阈值分层为：
@@ -553,5 +554,5 @@
 
 - CI：补充远端构建校验 workflow（用于本机无 Go 的场景）
   - 新增 [`CI workflow`](.github/workflows/ci.yml:1)
-  - 后端 job：使用 [`actions/setup-go`](.github/workflows/ci.yml:17) 按 `go.mod` 安装 Go，并执行 [`go test ./...`](.github/workflows/ci.yml:22)
-  - 前端 job：使用 [`oven-sh/setup-bun`](.github/workflows/ci.yml:34)，执行 [`bun install --frozen-lockfile`](.github/workflows/ci.yml:39) 与 [`bun run build`](.github/workflows/ci.yml:42)
+  - 后端 job：先用 Bun 构建前端产物 `web/dist`，再使用 [`actions/setup-go`](.github/workflows/ci.yml:27) 按 `go.mod` 安装 Go，并执行 [`go test ./...`](.github/workflows/ci.yml:32)，以适配 [`main.go`](main.go:38) 的 `//go:embed web/dist`
+  - 前端 job：使用 [`oven-sh/setup-bun`](.github/workflows/ci.yml:44)，执行 [`bun install`](.github/workflows/ci.yml:49) 与 [`bun run build`](.github/workflows/ci.yml:52)

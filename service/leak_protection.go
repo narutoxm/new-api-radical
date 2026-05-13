@@ -274,6 +274,9 @@ func isLeakProtectionSafeCandidate(candidate string) bool {
 	if isLeakProtectionNaturalWord(candidate) {
 		return true
 	}
+	if isLeakProtectionWordLikeCandidate(candidate) {
+		return true
+	}
 	return false
 }
 
@@ -370,6 +373,127 @@ func isLeakProtectionNaturalWord(candidate string) bool {
 		}
 	}
 	return hasLetter
+}
+
+func isLeakProtectionWordLikeCandidate(candidate string) bool {
+	if candidate == "" {
+		return false
+	}
+	if strings.ContainsAny(candidate, "+/=:") {
+		return false
+	}
+	if len(candidate) > 24 {
+		return false
+	}
+
+	normalized := splitLeakProtectionWordLikeCandidate(candidate)
+	if len(normalized) == 0 {
+		return false
+	}
+
+	alphaChunks := 0
+	digitLen := 0
+	for _, chunk := range normalized {
+		if chunk == "" {
+			continue
+		}
+		if isLeakProtectionNumericOnly(chunk) {
+			digitLen += len(chunk)
+			continue
+		}
+		if !isLeakProtectionNaturalWord(chunk) {
+			return false
+		}
+		if !isLeakProtectionAlphaWordLike(chunk) {
+			return false
+		}
+		alphaChunks++
+	}
+	if alphaChunks == 0 {
+		return false
+	}
+	if digitLen > 4 {
+		return false
+	}
+	return true
+}
+
+func splitLeakProtectionWordLikeCandidate(candidate string) []string {
+	parts := strings.FieldsFunc(candidate, func(r rune) bool {
+		return r == '-' || r == '_' || r == '.'
+	})
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		var current []rune
+		var currentKind int
+		flush := func() {
+			if len(current) == 0 {
+				return
+			}
+			result = append(result, string(current))
+			current = nil
+			currentKind = 0
+		}
+		for _, r := range part {
+			kind := 3
+			switch {
+			case r >= '0' && r <= '9':
+				kind = 1
+			case (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z'):
+				kind = 2
+			}
+			if kind == 3 {
+				return nil
+			}
+			if currentKind != 0 && kind != currentKind {
+				flush()
+			}
+			current = append(current, r)
+			currentKind = kind
+		}
+		flush()
+	}
+	return result
+}
+
+func isLeakProtectionAlphaWordLike(chunk string) bool {
+	if len(chunk) < 3 {
+		return false
+	}
+	lower := strings.ToLower(chunk)
+	vowels := 0
+	unique := make(map[rune]struct{})
+	repeatRun := 1
+	maxRepeatRun := 1
+	var prev rune
+	for i, r := range lower {
+		unique[r] = struct{}{}
+		switch r {
+		case 'a', 'e', 'i', 'o', 'u':
+			vowels++
+		}
+		if i > 0 {
+			if r == prev {
+				repeatRun++
+				if repeatRun > maxRepeatRun {
+					maxRepeatRun = repeatRun
+				}
+			} else {
+				repeatRun = 1
+			}
+		}
+		prev = r
+	}
+	if vowels == 0 {
+		return false
+	}
+	if maxRepeatRun > 2 {
+		return false
+	}
+	return len(unique) >= 3
 }
 
 func leakProtectionClassCount(candidate string) int {
