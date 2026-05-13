@@ -120,6 +120,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		blocked, reason := service.CheckRequestLeakProtection(request)
 		if blocked {
 			logger.LogWarn(c, "leak protection blocked request: "+reason)
+			recordLeakProtectionBlockedLog(c, reason)
 			newAPIError = types.NewError(service.NewLeakProtectionBlockedError(), types.ErrorCodeSensitiveWordsDetected, types.ErrOptionWithSkipRetry())
 			return
 		}
@@ -414,6 +415,43 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		model.RecordErrorLog(c, userId, channelId, modelName, tokenName, err.MaskSensitiveErrorWithStatusCode(), tokenId, useTimeSeconds, false, userGroup, other)
 	}
 
+}
+
+func recordLeakProtectionBlockedLog(c *gin.Context, reason string) {
+	if !constant.ErrorLogEnabled {
+		return
+	}
+	userId := c.GetInt("id")
+	if userId == 0 {
+		return
+	}
+	tokenName := c.GetString("token_name")
+	modelName := c.GetString("original_model")
+	tokenId := c.GetInt("token_id")
+	userGroup := c.GetString("group")
+	other := map[string]interface{}{
+		"error_type":    types.ErrorTypeNewAPIError,
+		"error_code":    types.ErrorCodeSensitiveWordsDetected,
+		"status_code":   http.StatusBadRequest,
+		"reject_reason": reason,
+		"blocked_by":    "leak_protection_strict",
+	}
+	if c.Request != nil && c.Request.URL != nil {
+		other["request_path"] = c.Request.URL.Path
+	}
+	model.RecordErrorLog(
+		c,
+		userId,
+		0,
+		modelName,
+		tokenName,
+		fmt.Sprintf("status_code=%d, %s", http.StatusBadRequest, service.NewLeakProtectionBlockedError().Error()),
+		tokenId,
+		0,
+		false,
+		userGroup,
+		other,
+	)
 }
 
 func RelayMidjourney(c *gin.Context) {

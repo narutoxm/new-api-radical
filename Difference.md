@@ -556,3 +556,31 @@
   - 新增 [`CI workflow`](.github/workflows/ci.yml:1)
   - 后端 job：先用 Bun 构建前端产物 `web/dist`，再使用 [`actions/setup-go`](.github/workflows/ci.yml:27) 按 `go.mod` 安装 Go，并执行 [`go test ./...`](.github/workflows/ci.yml:32)，以适配 [`main.go`](main.go:38) 的 `//go:embed web/dist`
   - 前端 job：使用 [`oven-sh/setup-bun`](.github/workflows/ci.yml:44)，执行 [`bun install`](.github/workflows/ci.yml:49) 与 [`bun run build`](.github/workflows/ci.yml:52)
+
+18. 【已实现】防泄漏管理卡片前端布局修正（避免长文案挤压开关与按钮）
+
+- 背景：
+  - 个人设置页新增“防泄漏管理”后，卡片内说明文案过长，和右侧开关、底部按钮处于同一紧凑布局层，在较窄宽度下会把控件挤小、挤变形，影响可读性和可点击性。
+
+- 实现：
+  - 调整 [`LeakProtectionSettings`](web/src/components/settings/personal/cards/LeakProtectionSettings.jsx:24) 布局，拆为“标题说明区 / 开关状态区 / 规则摘要区 / 保存区”四层，不再让长段说明和 `Switch` 横向硬挤。
+  - 缩短副标题与严格模式说明文案，把原先的大段描述改成更短的一句摘要。
+  - 新增带浅底色的状态区，单独承载“启用严格模式”文案和开关，保证 `Switch` 在窄屏下仍保持正常尺寸。
+  - 将规则说明改成 3 条短提示，减少视觉密度，同时保留用户最关心的拦截口径。
+  - 保存按钮在小屏下改为整行宽度、在大屏下恢复自适应宽度，避免按钮被压缩变形。
+
+19. 【已实现】防泄漏拦截也写入使用日志（错误日志）
+
+- 背景：
+  - 严格防泄漏命中时此前只会直接拒绝请求并写系统警告日志，不会在用户可见的使用日志中留下记录；用户无法从日志页回看是哪次请求因防泄漏被拦截。
+
+- 实现：
+  - 在 [`Relay()`](controller/relay.go:60) 的防泄漏短路分支中新增 [`recordLeakProtectionBlockedLog()`](controller/relay.go:421)。
+  - 该记录复用 [`model.RecordErrorLog()`](model/log.go:92)，按错误日志写入，而不是伪造消费日志；因为这类请求没有真正转发上游，也没有发生额度消耗。
+  - 日志内容固定为“请求因防泄漏被阻止”，并附带：
+    - `error_code = sensitive_words_detected`
+    - `status_code = 400`
+    - `reject_reason = request contains high-entropy credential-like content`
+    - `blocked_by = leak_protection_strict`
+    - `request_path`
+  - 若系统关闭了错误日志（[`constant.ErrorLogEnabled`](constant/logs.go:8) 为 `false`），则仍保持原有行为，不额外落库。

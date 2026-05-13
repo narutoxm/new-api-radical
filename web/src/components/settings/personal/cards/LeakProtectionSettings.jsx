@@ -38,43 +38,60 @@ const LeakProtectionSettings = ({
             {t('防泄漏管理')}
           </Typography.Text>
           <div className='text-xs text-gray-600 dark:text-gray-400'>
-            {t('扫描最近消息中的高熵凭据样式内容并在命中时拦截请求')}
+            {t('扫描最近消息中的疑似凭据，并在命中时拦截请求')}
           </div>
         </div>
       </div>
 
       <Card className='!rounded-xl border dark:border-gray-700'>
-        <div className='flex flex-col gap-4'>
-          <div className='flex items-start justify-between gap-4'>
-            <div className='pr-4'>
+        <div className='flex flex-col gap-5'>
+          <div className='flex items-start gap-4'>
+            <div className='w-12 h-12 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center flex-shrink-0'>
+              <ShieldAlert size={20} className='text-red-500' />
+            </div>
+            <div className='min-w-0 flex-1'>
               <Typography.Title heading={6} className='mb-1'>
                 {t('严格模式')}
               </Typography.Title>
               <Typography.Text type='tertiary' className='text-sm'>
                 {t(
-                  '开启后，将扫描最后3条用户或工具消息；若发现高熵随机串、复合UUID样式凭据或其他疑似泄漏内容，则直接拒绝请求。',
+                  '默认开启。扫描最后 3 条 user/tool 等价消息，命中疑似随机凭据时直接拦截。',
                 )}
               </Typography.Text>
             </div>
-            <Switch
-              checked={strictEnabled}
-              checkedText={t('开')}
-              uncheckedText={t('关')}
-              onChange={onStrictEnabledChange}
-            />
           </div>
 
-          <div className='text-xs text-gray-500 dark:text-gray-400 space-y-2'>
-            <div>{t('默认开启；关闭后不执行该项扫描。')}</div>
-            <div>
-              {t(
-                '该模式优先按高熵随机串判定，不会因为单独出现 api_key、PRIVATE KEY 等说明性文字就误拦。',
-              )}
+          <div className='flex flex-col gap-3 rounded-xl bg-gray-50/80 dark:bg-zinc-900/40 p-4 sm:flex-row sm:items-center sm:justify-between'>
+            <div className='min-w-0'>
+              <Typography.Text className='block font-medium'>
+                {t('启用严格模式')}
+              </Typography.Text>
+              <Typography.Text type='tertiary' className='text-sm'>
+                {strictEnabled
+                  ? t('当前会自动拦截疑似泄漏请求')
+                  : t('当前不执行防泄漏扫描')}
+              </Typography.Text>
+            </div>
+            <div className='flex-shrink-0'>
+              <Switch
+                checked={strictEnabled}
+                checkedText={t('开')}
+                uncheckedText={t('关')}
+                onChange={onStrictEnabledChange}
+              />
             </div>
           </div>
 
-          <div className='flex justify-end'>
-            <Button type='primary' onClick={onSave}>
+          <div className='space-y-2 text-xs text-gray-500 dark:text-gray-400'>
+            <div>{t('• 只扫描最近 3 条 user/tool 等价消息')}</div>
+            <div>{t('• 重点识别高熵随机串与复合 UUID 样式凭据')}</div>
+            <div>
+              {t('• 单独出现 api_key、PRIVATE KEY 等说明文字不会直接触发拦截')}
+            </div>
+          </div>
+
+          <div className='flex justify-stretch sm:justify-end'>
+            <Button type='primary' onClick={onSave} className='w-full sm:w-auto'>
               {t('保存防泄漏设置')}
             </Button>
           </div>
