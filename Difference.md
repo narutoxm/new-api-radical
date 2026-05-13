@@ -507,80 +507,41 @@
     - `map[string]any` 等非字符串 payload 不再 panic
     - `nil` payload 不再 panic
 
-17. 【已实现】用户级严格防泄漏管理（默认开启；扫描最后 3 条 user/tool 等价消息中的高熵随机串并阻断）
+17. 【已实现】用户级严格防泄漏管理（含前端开关、规则收敛、日志落库与 UI 修正）
 
-- 原始需求（保留）：实现一个拦截用户敏感凭据的功能，对于最后的 3 条 user 或 tool 消息（OpenAI Responses 格式、Chat 格式、Anthropic Messages 格式都要等价支持）扫描是否含有敏感凭据；用户可在个人设置中手动关闭；默认开启；不新开数据库字段，仅保留在用户 setting JSON 中。最终口径收敛为“严格模式”：以高熵随机串为核心判定，字段名只降阈值、不单独触发；裸 `uuid` / 裸标准 UUID 豁免，但 `abc-uuid`、`abc_uuid` 这类复合串可拦。
+- 目标：
+  - 为用户提供默认开启的严格防泄漏扫描；仅扫描最后 3 条 user/tool 等价消息，命中疑似高熵凭据时在转发前直接拦截。
+  - 不新增数据库字段，配置保存在 `user.setting` JSON 的 `disable_leak_protection_strict`。
 
-- 用户设置与默认行为（仍存于 `user.setting` JSON，不新增表/列）
-  - 设置字段：[`dto.UserSetting.DisableLeakProtectionStrict`](dto/user_settings.go:15)（json key `disable_leak_protection_strict`）；字段为“关闭严格防泄漏扫描”，因此缺省值即代表“默认开启”。
-  - 保存接口：[`controller.UpdateUserSettingRequest.DisableLeakProtectionStrict`](controller/user.go:1052) 接收前端开关值；[`controller.UpdateUserSetting()`](controller/user.go:1055) 现改为先读取 [`user.GetSetting()`](model/user.go:79) 再覆盖相关字段（见 [`settings.DisableLeakProtectionStrict = req.DisableLeakProtectionStrict`](controller/user.go:1148)），避免保存通知设置时把用户的其他 setting 一并抹掉。
-  - 开关判断：[`service.IsLeakProtectionStrictEnabled()`](service/leak_protection.go:32) 采用“`!DisableLeakProtectionStrict`”口径，保证未配置用户默认启用。
+- 后端规则与拦截：
+  - 入口在 [`controller.Relay()`](controller/relay.go)，由 [`service.CheckRequestLeakProtection()`](service/leak_protection.go) 在请求真正转发前执行。
+  - 三种格式等价支持：
+    - OpenAI Chat：[`dto/openai_request.go`](dto/openai_request.go)
+    - OpenAI Responses：[`dto/openai_request.go`](dto/openai_request.go)
+    - Anthropic Messages / tool-result 语义内容：[`dto/claude.go`](dto/claude.go)
+  - 规则以高熵随机串为主，字段名只降阈值、不单独触发；裸 `uuid`、裸标准 UUID、纯数字、日期/时间/版本号、URL、自然词、类单词串可豁免；`abc-uuid` / `abc_uuid` 这类复合 UUID 串可直接拦。
 
-- 请求拦截入口（在 relay 解析请求后、真正转发前执行）
-  - 触发点：[`controller.Relay()`](controller/relay.go:118) 在 [`helper.GetAndValidateRequest()`](relay/helper/valid_request.go:19) 成功后，先从 gin context 读取 [`constant.ContextKeyUserSetting`](constant/context_key.go:43)。
-  - 拦截流程：若开关开启，则调用 [`service.CheckRequestLeakProtection()`](service/leak_protection.go:36)；命中后直接返回 [`types.ErrorCodeSensitiveWordsDetected`](types/error.go:42)（见 [`newAPIError = types.NewError(...)`](controller/relay.go:123)），并通过日志记录 `leak protection blocked request`。
-  - 执行时机设计：放在 `SnapshotRequestRoles`、计费、渠道选择、重试前，避免把已判定为敏感泄漏的请求继续送入后续链路。
+- 前端与设置：
+  - 设置字段定义：[`dto/user_settings.go`](dto/user_settings.go)
+  - 保存逻辑：[`controller/user.go`](controller/user.go)
+  - 页面接线：[`web/src/components/settings/PersonalSetting.jsx`](web/src/components/settings/PersonalSetting.jsx)
+  - 独立卡片：[`web/src/components/settings/personal/cards/LeakProtectionSettings.jsx`](web/src/components/settings/personal/cards/LeakProtectionSettings.jsx)
+  - 后续又修正了卡片布局，把长文案拆成摘要 + 状态区 + 规则提示 + 保存区，避免开关和按钮被挤变形。
 
-- 扫描范围与三种请求格式的“等价支持”
-  - 总原则：只扫描最后 `3` 条“语义上属于 user/tool 的消息”；实现常量见 [`leakProtectionScanLimit`](service/leak_protection.go:14)。
-  - OpenAI Chat：[`extractOpenAIMessageTexts()`](service/leak_protection.go:59) 逆序遍历 `messages`，只取 `role in {user, tool}`；文本提取见 [`extractOpenAIMessageText()`](service/leak_protection.go:75)，优先取 [`Message.StringContent()`](dto/openai_request.go:336)，否则遍历 [`Message.ParseContent()`](dto/openai_request.go:372) 中的 `text` 片段；若仍无纯文本，则回退序列化整个 `message.Content`。
-  - OpenAI Responses：[`extractResponsesTexts()`](service/leak_protection.go:94) 处理 `input`；若 `input` 本身是字符串则直接视为一条用户消息（见 [`common.GetJsonType(request.Input) == "string"`](service/leak_protection.go:100)）；若为数组则逆序读取 [`dto.Input`](dto/openai_request.go:925) 的 `role`，仅保留 `user/tool`，文本提取见 [`extractResponsesInputText()`](service/leak_protection.go:127)。
-  - Anthropic Messages：[`extractClaudeTexts()`](service/leak_protection.go:154) 逆序处理 `messages` 中 `role in {user, tool}` 的消息；文本提取见 [`extractClaudeMessageText()`](service/leak_protection.go:173)。实现上除了 [`ClaudeMessage.GetStringContent()`](dto/claude.go:103) 外，还会遍历 [`ClaudeMessage.ParseContent()`](dto/claude.go:128) 返回的内容块，同时读取 [`ClaudeMediaMessage.GetText()`](dto/claude.go:35)、[`ClaudeMediaMessage.GetStringContent()`](dto/claude.go:47)、`item.Content` 与 `item.Input`。这样即使 Anthropic 语义上的 tool 结果落在 `role=user` 的 `tool_result` 内容块中，也会被等价扫描。
+- 使用日志：
+  - 命中防泄漏时除系统警告外，还会通过 [`model.RecordErrorLog()`](model/log.go) 写入使用日志（错误日志），便于用户回看被拦截请求。
+  - 对应实现位于 [`controller/relay.go`](controller/relay.go) 的 `recordLeakProtectionBlockedLog()`。
 
-- 严格模式规则（高熵随机串为主；字段名仅降阈值）
-  - 候选提取：[`leakCandidatePattern`](service/leak_protection.go:17) 从文本中提取长度至少 8 的连续候选串，允许字母、数字、`+ / _ = . -`。
-  - 直接豁免：
-    - 裸 `uuid`：见 [`lower == "uuid"`](service/leak_protection.go:259)
-    - 裸标准 UUID：见 [`leakUUIDPattern`](service/leak_protection.go:18) 与 [`leakUUIDPattern.MatchString(candidate)`](service/leak_protection.go:265)
-    - 纯数字：[`isLeakProtectionNumericOnly()`](service/leak_protection.go:308)
-    - 常见日期/时间/版本号：[`leakDatePattern`](service/leak_protection.go:19)、[`leakTimePattern`](service/leak_protection.go:20)、[`leakVersionPattern`](service/leak_protection.go:21)
-    - 纯 URL：[`isLeakProtectionURL()`](service/leak_protection.go:318)
-    - 纯字母自然词：[`isLeakProtectionNaturalWord()`](service/leak_protection.go:326)
-    - 类单词串：[`isLeakProtectionWordLikeCandidate()`](service/leak_protection.go:353) 对明显像人写标识的“单词 + 少量数字/连接符”做额外豁免，例如 `hello123`、`my-token`、`user_name`；但带 `+/=:` 的 token 样式串、过长串、无元音/重复度过高的伪单词仍不会放过。
-  - UUID 复合串：[`isLeakProtectionUUIDComposite()`](service/leak_protection.go:276) 对包含 `uuid` 且带 `-` / `_` / `:` 的复合串直接判定为风险，满足“`abc-uuid` / `abc_uuid` 可拦”的要求。
-  - 字段名提示只降阈值：[`hasLeakProtectionCredentialHint()`](service/leak_protection.go:282) 仅检查候选附近窗口是否出现 `api_key/token/secret/password/authorization/...` 等提示词；真正的判定仍在 [`isHighEntropyLeakProtectionCandidate(candidate, hasHint)`](service/leak_protection.go:297) 内，提示词只会降低熵阈值，不会单独触发拦截。
-  - 熵值判定：[`leakProtectionEntropy()`](service/leak_protection.go:362) 计算 Shannon entropy；[`leakProtectionClassCount()`](service/leak_protection.go:335) 统计字符类型数。当前阈值分层为：
-    - `len >= 24`：`classCount >= 2 && entropy >= 3.0`
-    - `len >= 16`：默认 `entropy >= 3.3`，有字段提示降到 `3.0`
-    - `len >= 12`：默认 `entropy >= 3.5`，有字段提示降到 `3.1`
-    - `8 <= len < 12`：默认 `entropy >= 3.8`，有字段提示降到 `3.35`
+- 涉及文件：
+  - [`service/leak_protection.go`](service/leak_protection.go)
+  - [`controller/relay.go`](controller/relay.go)
+  - [`dto/user_settings.go`](dto/user_settings.go)
+  - [`controller/user.go`](controller/user.go)
+  - [`dto/openai_request.go`](dto/openai_request.go)
+  - [`dto/claude.go`](dto/claude.go)
+  - [`model/log.go`](model/log.go)
+  - [`web/src/components/settings/PersonalSetting.jsx`](web/src/components/settings/PersonalSetting.jsx)
+  - [`web/src/components/settings/personal/cards/LeakProtectionSettings.jsx`](web/src/components/settings/personal/cards/LeakProtectionSettings.jsx)
 
-- 前端：个人设置新增“防泄漏管理”独立卡片（与账户管理/偏好设置/其他设置平行）
-  - 新卡片组件：[`LeakProtectionSettings`](web/src/components/settings/personal/cards/LeakProtectionSettings.jsx:24)。
-  - 页面挂载：[`PersonalSetting`](web/src/components/settings/PersonalSetting.jsx:497) 右侧列先渲染“防泄漏管理”，再渲染“其他设置”；导入与状态接线见 [`import LeakProtectionSettings`](web/src/components/settings/PersonalSetting.jsx:41) 与 [`notificationSettings.disableLeakProtectionStrict`](web/src/components/settings/PersonalSetting.jsx:92)。
-  - 读取回填：从 `user.setting` 解析 [`settings.disable_leak_protection_strict`](web/src/components/settings/PersonalSetting.jsx:166)。
-  - 保存：复用现有 `/api/user/setting`，在 [`saveNotificationSettings()`](web/src/components/settings/PersonalSetting.jsx:416) 中追加 `disable_leak_protection_strict`（见 [`notificationSettings.disableLeakProtectionStrict`](web/src/components/settings/PersonalSetting.jsx:436)）。
-  - UI 说明：卡片文案明确提示“默认开启；关闭后不执行扫描”，并解释“按高熵随机串判定，不会因为单独出现 `api_key` / `PRIVATE KEY` 等说明性文字误拦”（见 [`LeakProtectionSettings`](web/src/components/settings/personal/cards/LeakProtectionSettings.jsx:31)）。
-
-- CI：补充远端构建校验 workflow（用于本机无 Go 的场景）
-  - 新增 [`CI workflow`](.github/workflows/ci.yml:1)
-  - 后端 job：先用 Bun 构建前端产物 `web/dist`，再使用 [`actions/setup-go`](.github/workflows/ci.yml:27) 按 `go.mod` 安装 Go，并执行 [`go test ./...`](.github/workflows/ci.yml:32)，以适配 [`main.go`](main.go:38) 的 `//go:embed web/dist`
-  - 前端 job：使用 [`oven-sh/setup-bun`](.github/workflows/ci.yml:44)，执行 [`bun install`](.github/workflows/ci.yml:49) 与 [`bun run build`](.github/workflows/ci.yml:52)
-
-18. 【已实现】防泄漏管理卡片前端布局修正（避免长文案挤压开关与按钮）
-
-- 背景：
-  - 个人设置页新增“防泄漏管理”后，卡片内说明文案过长，和右侧开关、底部按钮处于同一紧凑布局层，在较窄宽度下会把控件挤小、挤变形，影响可读性和可点击性。
-
-- 实现：
-  - 调整 [`LeakProtectionSettings`](web/src/components/settings/personal/cards/LeakProtectionSettings.jsx:24) 布局，拆为“标题说明区 / 开关状态区 / 规则摘要区 / 保存区”四层，不再让长段说明和 `Switch` 横向硬挤。
-  - 缩短副标题与严格模式说明文案，把原先的大段描述改成更短的一句摘要。
-  - 新增带浅底色的状态区，单独承载“启用严格模式”文案和开关，保证 `Switch` 在窄屏下仍保持正常尺寸。
-  - 将规则说明改成 3 条短提示，减少视觉密度，同时保留用户最关心的拦截口径。
-  - 保存按钮在小屏下改为整行宽度、在大屏下恢复自适应宽度，避免按钮被压缩变形。
-
-19. 【已实现】防泄漏拦截也写入使用日志（错误日志）
-
-- 背景：
-  - 严格防泄漏命中时此前只会直接拒绝请求并写系统警告日志，不会在用户可见的使用日志中留下记录；用户无法从日志页回看是哪次请求因防泄漏被拦截。
-
-- 实现：
-  - 在 [`Relay()`](controller/relay.go:60) 的防泄漏短路分支中新增 [`recordLeakProtectionBlockedLog()`](controller/relay.go:421)。
-  - 该记录复用 [`model.RecordErrorLog()`](model/log.go:92)，按错误日志写入，而不是伪造消费日志；因为这类请求没有真正转发上游，也没有发生额度消耗。
-  - 日志内容固定为“请求因防泄漏被阻止”，并附带：
-    - `error_code = sensitive_words_detected`
-    - `status_code = 400`
-    - `reject_reason = request contains high-entropy credential-like content`
-    - `blocked_by = leak_protection_strict`
-    - `request_path`
-  - 若系统关闭了错误日志（[`constant.ErrorLogEnabled`](constant/logs.go:8) 为 `false`），则仍保持原有行为，不额外落库。
+- CI：
+  - 新增 [`CI workflow`](.github/workflows/ci.yml)，远端校验前端构建与 `go test ./...`，用于补足本机无 Bun / Go 的场景。
