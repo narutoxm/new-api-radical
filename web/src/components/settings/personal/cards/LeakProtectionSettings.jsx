@@ -38,7 +38,7 @@ const LeakProtectionSettings = ({
             {t('防泄漏管理')}
           </Typography.Text>
           <div className='text-xs text-gray-600 dark:text-gray-400'>
-            {t('扫描最近消息中的疑似凭据，并在命中时拦截请求')}
+            {t('基于默认规则扫描最近消息中的疑似凭据，并在命中时拦截请求')}
           </div>
         </div>
       </div>
@@ -55,7 +55,7 @@ const LeakProtectionSettings = ({
               </Typography.Title>
               <Typography.Text type='tertiary' className='text-sm'>
                 {t(
-                  '默认开启。扫描最后 3 条 user/tool 等价消息，命中疑似随机凭据时直接拦截。',
+                  '默认开启。扫描最后 3 条 user/tool 等价消息，命中默认规则中的疑似泄漏内容时直接拦截。',
                 )}
               </Typography.Text>
             </div>
@@ -84,9 +84,9 @@ const LeakProtectionSettings = ({
 
           <div className='space-y-2 text-xs text-gray-500 dark:text-gray-400'>
             <div>{t('• 只扫描最近 3 条 user/tool 等价消息')}</div>
-            <div>{t('• 重点识别高熵随机串与复合 UUID 样式凭据')}</div>
+            <div>{t('• 使用默认内置规则识别常见密钥、令牌与私钥内容')}</div>
             <div>
-              {t('• 单独出现 api_key、PRIVATE KEY 等说明文字不会直接触发拦截')}
+              {t('• 如有需要，可在个人设置中关闭该保护')}
             </div>
           </div>
 
