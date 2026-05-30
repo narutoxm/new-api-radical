@@ -51,8 +51,10 @@ type EpayOrderQueryResult struct {
 }
 
 type EpayReconcileItem struct {
+	OrderType       string                 `json:"order_type"`
 	TradeNo         string                 `json:"trade_no"`
 	UserId          int                    `json:"user_id"`
+	PlanId          int                    `json:"plan_id,omitempty"`
 	Amount          int64                  `json:"amount"`
 	Money           float64                `json:"money"`
 	LocalStatus     string                 `json:"local_status"`
@@ -115,7 +117,7 @@ func runEpayOrderReconcileOnce() {
 
 	windowSeconds := int64(common.GetEnvOrDefault("EPAY_ORDER_RECONCILE_AUTO_WINDOW_SECONDS", epayOrderReconcileDefaultAutoWindow))
 	batchSize := common.GetEnvOrDefault("EPAY_ORDER_RECONCILE_BATCH_SIZE", epayOrderReconcileDefaultBatchSize)
-	report := ReconcilePendingEpayTopUps(EpayReconcileOptions{
+	report := ReconcilePendingEpayOrders(EpayReconcileOptions{
 		Limit:         batchSize,
 		MaxAgeSeconds: windowSeconds,
 		DryRun:        false,
@@ -124,6 +126,42 @@ func runEpayOrderReconcileOnce() {
 	if report.Completed > 0 || report.Failed > 0 {
 		logger.LogInfo(context.Background(), fmt.Sprintf("epay order reconcile: scanned=%d queried=%d completed=%d skipped=%d failed=%d", report.Scanned, report.Queried, report.Completed, report.Skipped, report.Failed))
 	}
+}
+
+func ReconcilePendingEpayOrders(opts EpayReconcileOptions) EpayReconcileReport {
+	report := EpayReconcileReport{
+		DryRun: opts.DryRun,
+		Items:  make([]EpayReconcileItem, 0),
+	}
+	if opts.Limit == 0 {
+		opts.Limit = epayOrderReconcileDefaultBatchSize
+	}
+	topUps, topUpErr := model.GetPendingEpayTopUps(opts.Limit, opts.MinAgeSeconds, opts.MaxAgeSeconds)
+	if topUpErr != nil {
+		report.Failed++
+		report.Items = append(report.Items, EpayReconcileItem{OrderType: "topup", Action: "query_local_failed", Error: topUpErr.Error()})
+	}
+	for _, topUp := range topUps {
+		if topUp == nil {
+			continue
+		}
+		item := reconcileOneEpayTopUp(topUp, opts.DryRun)
+		report.addItem(item)
+	}
+
+	subscriptionOrders, subscriptionErr := model.GetPendingEpaySubscriptionOrders(opts.Limit, opts.MinAgeSeconds, opts.MaxAgeSeconds)
+	if subscriptionErr != nil {
+		report.Failed++
+		report.Items = append(report.Items, EpayReconcileItem{OrderType: "subscription", Action: "query_local_failed", Error: subscriptionErr.Error()})
+	}
+	for _, order := range subscriptionOrders {
+		if order == nil {
+			continue
+		}
+		item := reconcileOneEpaySubscriptionOrder(order, opts.DryRun)
+		report.addItem(item)
+	}
+	return report
 }
 
 func ReconcilePendingEpayTopUps(opts EpayReconcileOptions) EpayReconcileReport {
@@ -137,39 +175,45 @@ func ReconcilePendingEpayTopUps(opts EpayReconcileOptions) EpayReconcileReport {
 	topUps, err := model.GetPendingEpayTopUps(opts.Limit, opts.MinAgeSeconds, opts.MaxAgeSeconds)
 	if err != nil {
 		report.Failed++
-		report.Items = append(report.Items, EpayReconcileItem{Action: "query_local_failed", Error: err.Error()})
+		report.Items = append(report.Items, EpayReconcileItem{OrderType: "topup", Action: "query_local_failed", Error: err.Error()})
 		return report
 	}
-	report.Scanned = len(topUps)
 	for _, topUp := range topUps {
 		if topUp == nil {
 			continue
 		}
-		item := reconcileOneEpayTopUp(topUp, opts.DryRun)
-		report.Items = append(report.Items, item)
-		report.Queried++
-		switch item.Action {
-		case "completed", "would_complete":
-			if item.Action == "completed" {
-				report.Completed++
-			} else {
-				report.Skipped++
-			}
-		case "provider_pending", "provider_not_success", "money_mismatch", "pid_mismatch", "out_trade_no_mismatch":
-			report.Skipped++
-		default:
-			if item.Error != "" {
-				report.Failed++
-			} else {
-				report.Skipped++
-			}
-		}
+		report.addItem(reconcileOneEpayTopUp(topUp, opts.DryRun))
 	}
 	return report
 }
 
+func (report *EpayReconcileReport) addItem(item EpayReconcileItem) {
+	report.Items = append(report.Items, item)
+	report.Scanned++
+	if item.Action != "query_local_failed" {
+		report.Queried++
+	}
+	switch item.Action {
+	case "completed", "would_complete":
+		if item.Action == "completed" {
+			report.Completed++
+		} else {
+			report.Skipped++
+		}
+	case "provider_pending", "provider_not_success", "provider_not_found", "money_mismatch", "pid_mismatch", "out_trade_no_mismatch":
+		report.Skipped++
+	default:
+		if item.Error != "" {
+			report.Failed++
+		} else {
+			report.Skipped++
+		}
+	}
+}
+
 func reconcileOneEpayTopUp(topUp *model.TopUp, dryRun bool) EpayReconcileItem {
 	item := EpayReconcileItem{
+		OrderType:   "topup",
 		TradeNo:     topUp.TradeNo,
 		UserId:      topUp.UserId,
 		Amount:      topUp.Amount,
@@ -216,6 +260,63 @@ func reconcileOneEpayTopUp(topUp *model.TopUp, dryRun bool) EpayReconcileItem {
 		return item
 	}
 	if err := model.CompleteEpayTopUpByQuery(topUp.TradeNo, result.TradeNo); err != nil {
+		item.Action = "complete_failed"
+		item.Error = err.Error()
+		return item
+	}
+	item.Action = "completed"
+	return item
+}
+
+func reconcileOneEpaySubscriptionOrder(order *model.SubscriptionOrder, dryRun bool) EpayReconcileItem {
+	item := EpayReconcileItem{
+		OrderType:   "subscription",
+		TradeNo:     order.TradeNo,
+		UserId:      order.UserId,
+		PlanId:      order.PlanId,
+		Money:       order.Money,
+		LocalStatus: order.Status,
+	}
+	result, err := QueryEpayOrder(order.TradeNo)
+	if err != nil {
+		item.Action = "query_provider_failed"
+		item.Error = err.Error()
+		return item
+	}
+	item.Query = result
+	item.ProviderStatus = result.Status
+	item.ProviderTradeNo = result.TradeNo
+	item.ProviderMoney = result.Money
+
+	if result.Code != 1 {
+		item.Action = "provider_not_found"
+		item.Error = result.Message
+		return item
+	}
+	if result.OutTradeNo != order.TradeNo {
+		item.Action = "out_trade_no_mismatch"
+		item.Error = fmt.Sprintf("provider out_trade_no=%s", result.OutTradeNo)
+		return item
+	}
+	if result.Pid != operation_setting.EpayId {
+		item.Action = "pid_mismatch"
+		item.Error = "provider pid mismatch"
+		return item
+	}
+	if !epayMoneyMatches(result.Money, order.Money) {
+		item.Action = "money_mismatch"
+		item.Error = fmt.Sprintf("provider money=%s local money=%.2f", result.Money, order.Money)
+		return item
+	}
+	if result.Status != 1 {
+		item.Action = "provider_pending"
+		return item
+	}
+	if dryRun {
+		item.Action = "would_complete"
+		return item
+	}
+	if err := model.CompleteSubscriptionOrder(order.TradeNo, common.GetJsonString(result)); err != nil {
 		item.Action = "complete_failed"
 		item.Error = err.Error()
 		return item

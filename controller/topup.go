@@ -415,7 +415,7 @@ func AdminReconcileEpayTopUps(c *gin.Context) {
 		maxAgeSeconds = req.MaxAgeDays * 24 * 3600
 	}
 
-	report := service.ReconcilePendingEpayTopUps(service.EpayReconcileOptions{
+	report := service.ReconcilePendingEpayOrders(service.EpayReconcileOptions{
 		Limit:         req.Limit,
 		MinAgeSeconds: req.MinAgeSeconds,
 		MaxAgeSeconds: maxAgeSeconds,

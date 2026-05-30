@@ -229,6 +229,29 @@ func GetSubscriptionOrderByTradeNo(tradeNo string) *SubscriptionOrder {
 	return &order
 }
 
+func GetPendingEpaySubscriptionOrders(limit int, minAgeSeconds int64, maxAgeSeconds int64) ([]*SubscriptionOrder, error) {
+	if limit == 0 {
+		limit = 100
+	}
+	now := common.GetTimestamp()
+	query := DB.Where("status = ? AND payment_method = ?", common.TopUpStatusPending, "epay")
+	if minAgeSeconds > 0 {
+		query = query.Where("create_time <= ?", now-minAgeSeconds)
+	}
+	if maxAgeSeconds > 0 {
+		query = query.Where("create_time >= ?", now-maxAgeSeconds)
+	}
+	var orders []*SubscriptionOrder
+	query = query.Order("id asc")
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	if err := query.Find(&orders).Error; err != nil {
+		return nil, err
+	}
+	return orders, nil
+}
+
 // User subscription instance
 type UserSubscription struct {
 	Id     int `json:"id"`

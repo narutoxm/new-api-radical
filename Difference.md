@@ -588,11 +588,11 @@
   - 缓存 token、cache creation token、completion token 仍按上游返回值处理；本次只补齐缺失的输入 token。
   - 若本地估算也为 0（例如关闭 `CountToken`），则保持原行为，不强行收费。
 
-20. 【已实现】易支付主动查单补单（自动近 10 分钟补偿 + 管理员全量扫描接口）
+20. 【已实现】易支付主动查单补单（充值与订阅，自动近 10 分钟补偿 + 管理员全量扫描接口）
 
 - 目标：
-  - 解决易支付平台已支付成功但异步 notify 未到达站点时，充值订单长期停留在 `pending` 的问题。
-  - 自动任务只处理低风险的“最近 10 分钟内 pending 充值”；历史积压订单通过管理员主动接口按需扫描，避免一次性打爆支付平台查单接口。
+  - 解决易支付平台已支付成功但异步 notify 未到达站点时，普通充值订单或订阅订单长期停留在 `pending` 的问题。
+  - 自动任务只处理低风险的“最近 10 分钟内 pending 易支付订单”；历史积压订单通过管理员主动接口按需扫描，避免一次性打爆支付平台查单接口。
 
 - 主动查单：
   - 新增 [`service.QueryEpayOrder()`](service/epay_reconcile.go) 调用易支付查单接口：
@@ -604,7 +604,9 @@
 - 自动补单任务：
   - 启动入口：[`service.StartEpayOrderReconcileTask()`](service/epay_reconcile.go)，在 [`main.go`](main.go) 中注册。
   - 默认关闭，需设置 `EPAY_ORDER_RECONCILE_ENABLED=true` 才启用。
-  - 任务每分钟执行一次，只扫描 `top_ups.status=pending` 且 `payment_method=epay` 的最近窗口订单。
+  - 任务每分钟执行一次，扫描最近窗口内 `payment_method=epay` 且 `status=pending` 的普通充值订单与订阅订单：
+    - 普通充值：[`model.GetPendingEpayTopUps()`](model/topup.go) 查询 `top_ups`
+    - 订阅订单：[`model.GetPendingEpaySubscriptionOrders()`](model/subscription.go) 查询 `subscription_orders`
   - 自动窗口默认 10 分钟：`EPAY_ORDER_RECONCILE_AUTO_WINDOW_SECONDS=600`。
   - 每轮批量大小默认 100：`EPAY_ORDER_RECONCILE_BATCH_SIZE=100`。
 
@@ -616,14 +618,15 @@
     - `limit`：限制本次扫描条数；传负数可全量扫描匹配范围。
     - `max_age_seconds` / `max_age_days`：只扫描指定时间范围内的 pending 订单。
     - `min_age_seconds`：跳过太新的订单。
-  - 返回 [`service.EpayReconcileReport`](service/epay_reconcile.go)，包含 `scanned/queried/completed/skipped/failed` 与每笔订单的 `action`。
+  - 返回 [`service.EpayReconcileReport`](service/epay_reconcile.go)，包含 `scanned/queried/completed/skipped/failed` 与每笔订单的 `order_type/action`。
 
 - 入账安全：
   - 只在平台返回 `code=1` 且 `status=1` 时补单。
   - 补单前校验：
     - 平台 `out_trade_no` 必须等于本地订单号
     - 平台 `pid` 必须等于当前商户号
-    - 平台 `money` 必须与本地 `top_ups.money` 匹配
+    - 平台 `money` 必须与本地订单金额匹配（普通充值对比 `top_ups.money`，订阅对比 `subscription_orders.money`）
   - 平台 `status=0`、失败、退款或未支付类状态不会改本地订单状态，只在报告中标记 `provider_pending` 等跳过动作。
   - 入账函数 [`model.CompleteEpayTopUpByQuery()`](model/topup.go) 使用事务和行级锁读取订单，只有 `pending` 的 `epay` 订单会完成；已成功订单直接幂等返回，避免 notify 与主动查单并发导致重复加额度。
+  - 订阅补单调用 [`model.CompleteSubscriptionOrder()`](model/subscription.go)，只开通订阅权益并通过既有 [`upsertSubscriptionTopUpTx()`](model/subscription.go) 写支付流水，不会按普通充值给用户增加余额。
   - 原异步回调 [`controller.EpayNotify()`](controller/topup.go) 也改为复用同一个完成函数，统一幂等补单路径。
