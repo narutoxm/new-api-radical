@@ -14,9 +14,7 @@ func Monitor() {
 	for {
 		percent, err := cpu.Percent(time.Second, false)
 		if err != nil {
-			SysError("pprof monitor cpu sample failed: " + err.Error())
-			time.Sleep(30 * time.Second)
-			continue
+			panic(err)
 		}
 		if percent[0] > 80 {
 			fmt.Println("cpu usage too high")

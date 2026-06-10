@@ -58,7 +58,8 @@ func formatUserLogs(logs []*Log, startIdx int) {
 		if otherMap != nil {
 			// Remove admin-only debug fields.
 			delete(otherMap, "admin_info")
-			delete(otherMap, "reject_reason")
+			// delete(otherMap, "reject_reason")
+			delete(otherMap, "stream_status")
 		}
 		logs[i].Other = common.MapToJsonStr(otherMap)
 		logs[i].Id = startIdx + i + 1
@@ -89,12 +90,71 @@ func RecordLog(userId int, logType int, content string) {
 	}
 }
 
+// RecordLogWithAdminInfo 记录操作日志，并将管理员相关信息存入 Other.admin_info，
+func RecordLogWithAdminInfo(userId int, logType int, content string, adminInfo map[string]interface{}) {
+	if logType == LogTypeConsume && !common.LogConsumeEnabled {
+		return
+	}
+	username, _ := GetUsernameById(userId, false)
+	log := &Log{
+		UserId:    userId,
+		Username:  username,
+		CreatedAt: common.GetTimestamp(),
+		Type:      logType,
+		Content:   content,
+	}
+	if len(adminInfo) > 0 {
+		other := map[string]interface{}{
+			"admin_info": adminInfo,
+		}
+		log.Other = common.MapToJsonStr(other)
+	}
+	if err := LOG_DB.Create(log).Error; err != nil {
+		common.SysLog("failed to record log: " + err.Error())
+	}
+}
+
+func RecordTopupLog(userId int, content string, callerIp string, paymentMethod string, callbackPaymentMethod string) {
+	username, _ := GetUsernameById(userId, false)
+	adminInfo := map[string]interface{}{
+		"server_ip":               common.GetIp(),
+		"node_name":               common.NodeName,
+		"caller_ip":               callerIp,
+		"payment_method":          paymentMethod,
+		"callback_payment_method": callbackPaymentMethod,
+		"version":                 common.Version,
+	}
+	other := map[string]interface{}{
+		"admin_info": adminInfo,
+	}
+	log := &Log{
+		UserId:    userId,
+		Username:  username,
+		CreatedAt: common.GetTimestamp(),
+		Type:      LogTypeTopup,
+		Content:   content,
+		Ip:        callerIp,
+		Other:     common.MapToJsonStr(other),
+	}
+	err := LOG_DB.Create(log).Error
+	if err != nil {
+		common.SysLog("failed to record topup log: " + err.Error())
+	}
+}
+
 func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string, tokenName string, content string, tokenId int, useTimeSeconds int,
 	isStream bool, group string, other map[string]interface{}) {
 	logger.LogInfo(c, fmt.Sprintf("record error log: userId=%d, channelId=%d, modelName=%s, tokenName=%s, content=%s", userId, channelId, modelName, tokenName, content))
 	username := c.GetString("username")
 	requestId := c.GetString(common.RequestIdKey)
 	otherStr := common.MapToJsonStr(other)
+	// 判断是否需要记录 IP
+	needRecordIp := false
+	if settingMap, err := GetUserSetting(userId, false); err == nil {
+		if settingMap.RecordIpLog {
+			needRecordIp = true
+		}
+	}
 	log := &Log{
 		UserId:           userId,
 		Username:         username,
@@ -112,10 +172,10 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 		IsStream:         isStream,
 		Group:            group,
 		Ip: func() string {
-			if c == nil {
-				return ""
+			if needRecordIp {
+				return c.ClientIP()
 			}
-			return c.ClientIP()
+			return ""
 		}(),
 		RequestId: requestId,
 		Other:     otherStr,
@@ -124,15 +184,6 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 	if err != nil {
 		logger.LogError(c, "failed to record log: "+err.Error())
 	}
-
-	RecordModelHealthEventAsync(c, &ModelHealthEvent{
-		ModelName: modelName,
-		CreatedAt: log.CreatedAt,
-		IsError:   true,
-	})
-
-	// 记录活跃任务槽
-	RecordActiveTaskSlot(c, userId, username, modelName)
 }
 
 type RecordConsumeLogParams struct {
@@ -158,6 +209,13 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	username := c.GetString("username")
 	requestId := c.GetString(common.RequestIdKey)
 	otherStr := common.MapToJsonStr(params.Other)
+	// 判断是否需要记录 IP
+	needRecordIp := false
+	if settingMap, err := GetUserSetting(userId, false); err == nil {
+		if settingMap.RecordIpLog {
+			needRecordIp = true
+		}
+	}
 	log := &Log{
 		UserId:           userId,
 		Username:         username,
@@ -175,10 +233,10 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 		IsStream:         params.IsStream,
 		Group:            params.Group,
 		Ip: func() string {
-			if c == nil {
-				return ""
+			if needRecordIp {
+				return c.ClientIP()
 			}
-			return c.ClientIP()
+			return ""
 		}(),
 		RequestId: requestId,
 		Other:     otherStr,
@@ -192,24 +250,6 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 			LogQuotaData(userId, username, params.ModelName, params.Quota, common.GetTimestamp(), params.PromptTokens+params.CompletionTokens)
 		})
 	}
-
-	responseBytes := 0
-	assistantChars := 0
-	if c != nil {
-		responseBytes = c.GetInt("response_bytes")
-		assistantChars = c.GetInt("assistant_content_chars")
-	}
-	RecordModelHealthEventAsync(c, &ModelHealthEvent{
-		ModelName:        params.ModelName,
-		CreatedAt:        log.CreatedAt,
-		IsError:          false,
-		ResponseBytes:    responseBytes,
-		CompletionTokens: params.CompletionTokens,
-		AssistantChars:   assistantChars,
-	})
-
-	// 记录活跃任务槽
-	RecordActiveTaskSlot(c, userId, username, params.ModelName)
 }
 
 type RecordTaskBillingLogParams struct {
@@ -490,32 +530,4 @@ func DeleteOldLog(ctx context.Context, targetTimestamp int64, limit int) (int64,
 	}
 
 	return total, nil
-}
-
-
-// ModelTokenUsage 模型token使用统计
-type ModelTokenUsage struct {
-	ModelName        string `json:"model_name"`
-	PromptTokens     int64  `json:"prompt_tokens"`
-	CompletionTokens int64  `json:"completion_tokens"`
-	TotalTokens      int64  `json:"total_tokens"`
-	RequestCount     int64  `json:"request_count"`
-}
-
-// GetUserTokenUsageByModel 获取用户在指定时间范围内按模型分类的token消耗
-// 优先使用quota_data表（数据看板统计表），性能更好
-func GetUserTokenUsageByModel(userId int, startTimestamp int64, endTimestamp int64) ([]ModelTokenUsage, error) {
-	var results []ModelTokenUsage
-
-	// 使用quota_data表查询，该表已按小时聚合
-	err := DB.Table("quota_data").
-		Select("model_name, sum(token_used) as total_tokens, sum(count) as request_count").
-		Where("user_id = ?", userId).
-		Where("created_at >= ?", startTimestamp).
-		Where("created_at <= ?", endTimestamp).
-		Group("model_name").
-		Order("total_tokens desc").
-		Find(&results).Error
-
-	return results, err
 }

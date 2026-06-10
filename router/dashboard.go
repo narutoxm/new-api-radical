@@ -1,7 +1,6 @@
 package router
 
 import (
-	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/controller"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/gin-contrib/gzip"
@@ -11,9 +10,7 @@ import (
 func SetDashboardRouter(router *gin.Engine) {
 	apiRouter := router.Group("/")
 	apiRouter.Use(middleware.RouteTag("old_api"))
-	if common.GetEnvOrDefaultBool("ENABLE_GIN_GZIP", false) {
-		apiRouter.Use(gzip.Gzip(gzip.BestSpeed))
-	}
+	apiRouter.Use(gzip.Gzip(gzip.DefaultCompression))
 	apiRouter.Use(middleware.GlobalAPIRateLimit())
 	apiRouter.Use(middleware.CORS())
 	apiRouter.Use(middleware.TokenAuth())

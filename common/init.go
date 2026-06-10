@@ -33,9 +33,7 @@ func InitEnv() {
 
 	envVersion := os.Getenv("VERSION")
 	if envVersion != "" {
-		envVersion = strings.ReplaceAll(envVersion, "\r\n", "\n")
-		firstLine, _, _ := strings.Cut(envVersion, "\n")
-		Version = strings.TrimSpace(firstLine)
+		Version = envVersion
 	}
 
 	if *PrintVersion {
@@ -84,6 +82,7 @@ func InitEnv() {
 	DebugEnabled = os.Getenv("DEBUG") == "true"
 	MemoryCacheEnabled = os.Getenv("MEMORY_CACHE_ENABLED") == "true"
 	IsMasterNode = os.Getenv("NODE_TYPE") != "slave"
+	NodeName = os.Getenv("NODE_NAME")
 	TLSInsecureSkipVerify = GetEnvOrDefaultBool("TLS_INSECURE_SKIP_VERIFY", false)
 	if TLSInsecureSkipVerify {
 		if tr, ok := http.DefaultTransport.(*http.Transport); ok && tr != nil {
@@ -98,18 +97,6 @@ func InitEnv() {
 	// Parse requestInterval and set RequestInterval
 	requestInterval, _ = strconv.Atoi(os.Getenv("POLLING_INTERVAL"))
 	RequestInterval = time.Duration(requestInterval) * time.Second
-
-	// Adaptive retry delay (CPU-driven, env controlled)
-	adaptiveEnabled := GetEnvOrDefaultBool("RETRY_DELAY_ADAPTIVE_ENABLED", false)
-	adaptiveCPUThreshold := GetEnvOrDefault("RETRY_DELAY_CPU_THRESHOLD", 50)
-	adaptiveStepMS := GetEnvOrDefault("RETRY_DELAY_STEP_MS", 10)
-	adaptiveMaxMS := GetEnvOrDefault("RETRY_DELAY_MAX_MS", 1000)
-	SetAdaptiveRetryDelayConfig(AdaptiveRetryDelayConfig{
-		Enabled:      adaptiveEnabled,
-		CPUThreshold: adaptiveCPUThreshold,
-		Step:         time.Duration(adaptiveStepMS) * time.Millisecond,
-		Max:          time.Duration(adaptiveMaxMS) * time.Millisecond,
-	})
 
 	// Initialize variables with GetEnvOrDefault
 	SyncFrequency = GetEnvOrDefault("SYNC_FREQUENCY", 60)
@@ -134,6 +121,10 @@ func InitEnv() {
 	CriticalRateLimitEnable = GetEnvOrDefaultBool("CRITICAL_RATE_LIMIT_ENABLE", true)
 	CriticalRateLimitNum = GetEnvOrDefault("CRITICAL_RATE_LIMIT", 20)
 	CriticalRateLimitDuration = int64(GetEnvOrDefault("CRITICAL_RATE_LIMIT_DURATION", 20*60))
+
+	SearchRateLimitEnable = GetEnvOrDefaultBool("SEARCH_RATE_LIMIT_ENABLE", true)
+	SearchRateLimitNum = GetEnvOrDefault("SEARCH_RATE_LIMIT", 10)
+	SearchRateLimitDuration = int64(GetEnvOrDefault("SEARCH_RATE_LIMIT_DURATION", 60))
 	initConstantEnv()
 }
 
@@ -141,7 +132,7 @@ func initConstantEnv() {
 	constant.StreamingTimeout = GetEnvOrDefault("STREAMING_TIMEOUT", 300)
 	constant.DifyDebug = GetEnvOrDefaultBool("DIFY_DEBUG", true)
 	constant.MaxFileDownloadMB = GetEnvOrDefault("MAX_FILE_DOWNLOAD_MB", 64)
-	constant.StreamScannerMaxBufferMB = GetEnvOrDefault("STREAM_SCANNER_MAX_BUFFER_MB", 64)
+	constant.StreamScannerMaxBufferMB = GetEnvOrDefault("STREAM_SCANNER_MAX_BUFFER_MB", 128)
 	// MaxRequestBodyMB 请求体最大大小（解压后），用于防止超大请求/zip bomb导致内存暴涨
 	constant.MaxRequestBodyMB = GetEnvOrDefault("MAX_REQUEST_BODY_MB", 128)
 	// ForceStreamOption 覆盖请求参数，强制返回usage信息

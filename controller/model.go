@@ -3,7 +3,6 @@ package controller
 import (
 	"fmt"
 	"net/http"
-	"sort"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -16,9 +15,9 @@ import (
 	"github.com/QuantumNous/new-api/relay/channel/minimax"
 	"github.com/QuantumNous/new-api/relay/channel/moonshot"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
-	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
@@ -135,8 +134,7 @@ func ListModels(c *gin.Context, modelType int) {
 		}
 		for allowModel, _ := range tokenModelLimit {
 			if !acceptUnsetRatioModel {
-				_, _, exist := ratio_setting.GetModelRatioOrPrice(allowModel)
-				if !exist {
+				if !helper.HasModelBillingConfig(allowModel) {
 					continue
 				}
 			}
@@ -183,8 +181,7 @@ func ListModels(c *gin.Context, modelType int) {
 		}
 		for _, modelName := range models {
 			if !acceptUnsetRatioModel {
-				_, _, exist := ratio_setting.GetModelRatioOrPrice(modelName)
-				if !exist {
+				if !helper.HasModelBillingConfig(modelName) {
 					continue
 				}
 			}
@@ -248,31 +245,10 @@ func ChannelListModels(c *gin.Context) {
 	})
 }
 
-func flattenChannelModels(modelsByChannelType map[int][]string) []string {
-	if len(modelsByChannelType) == 0 {
-		return []string{}
-	}
-	flat := make([]string, 0)
-	for _, models := range modelsByChannelType {
-		for _, name := range models {
-			if name == "" {
-				continue
-			}
-			flat = append(flat, name)
-		}
-	}
-	flat = lo.Uniq(flat)
-	sort.Strings(flat)
-	return flat
-}
-
 func DashboardListModels(c *gin.Context) {
-	// Frontend expects an array, not a map keyed by channel type.
-	// Keep the grouped data as an extra field for backward/diagnostic usage.
 	c.JSON(200, gin.H{
 		"success": true,
-		"data":    flattenChannelModels(channelId2Models),
-		"grouped": channelId2Models,
+		"data":    channelId2Models,
 	})
 }
 

@@ -37,18 +37,13 @@ func init() {
 func StartSystemMonitor() {
 	go func() {
 		for {
-			perfConfig := GetPerformanceMonitorConfig()
-			adaptiveConfig := GetAdaptiveRetryDelayConfig()
-			if !perfConfig.Enabled && !adaptiveConfig.Enabled {
+			config := GetPerformanceMonitorConfig()
+			if !config.Enabled {
 				time.Sleep(30 * time.Second)
 				continue
 			}
 
 			updateSystemStatus()
-			if adaptiveConfig.Enabled {
-				status := GetSystemStatus()
-				AdjustAdaptiveRetryDelay(status.CPUUsage)
-			}
 			time.Sleep(5 * time.Second)
 		}
 	}()

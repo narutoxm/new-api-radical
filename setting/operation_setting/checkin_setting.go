@@ -3,22 +3,17 @@ package operation_setting
 import "github.com/QuantumNous/new-api/setting/config"
 
 // CheckinSetting 签到功能配置
-// 兼容上游字段命名，同时保留固定/随机模式功能
 type CheckinSetting struct {
-	Enabled    bool `json:"enabled"`     // 是否启用签到功能
-	MinQuota   int  `json:"min_quota"`   // 签到最小额度（随机模式下使用）
-	MaxQuota   int  `json:"max_quota"`   // 签到最大额度（随机模式下使用）
-	FixedQuota int  `json:"fixed_quota"` // 固定签到额度（固定模式下使用）
-	RandomMode bool `json:"random_mode"` // 是否启用随机额度模式（默认true与上游行为一致）
+	Enabled  bool `json:"enabled"`   // 是否启用签到功能
+	MinQuota int  `json:"min_quota"` // 签到最小额度奖励
+	MaxQuota int  `json:"max_quota"` // 签到最大额度奖励
 }
 
 // 默认配置
 var checkinSetting = CheckinSetting{
-	Enabled:    false,
-	MinQuota:   1000,
-	MaxQuota:   10000,
-	FixedQuota: 5000,
-	RandomMode: true, // 默认随机模式，与上游行为一致
+	Enabled:  false, // 默认关闭
+	MinQuota: 1000,  // 默认最小额度 1000 (约 0.002 USD)
+	MaxQuota: 10000, // 默认最大额度 10000 (约 0.02 USD)
 }
 
 func init() {

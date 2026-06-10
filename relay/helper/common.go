@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/dto"
@@ -14,53 +13,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
-
-const (
-	streamFlushStateContextKey = "stream_flush_state"
-	streamFlushByteThreshold   = 8 << 10
-	streamFlushTimeThreshold   = 25 * time.Millisecond
-)
-
-type streamFlushState struct {
-	pendingBytes  int
-	lastFlushTime time.Time
-}
-
-func getStreamFlushState(c *gin.Context) *streamFlushState {
-	if c == nil {
-		return nil
-	}
-	if v, ok := c.Get(streamFlushStateContextKey); ok {
-		if state, ok := v.(*streamFlushState); ok && state != nil {
-			return state
-		}
-	}
-	state := &streamFlushState{
-		lastFlushTime: time.Now(),
-	}
-	c.Set(streamFlushStateContextKey, state)
-	return state
-}
-
-func maybeFlushWriter(c *gin.Context, force bool, wroteBytes int) error {
-	state := getStreamFlushState(c)
-	if state != nil && wroteBytes > 0 {
-		state.pendingBytes += wroteBytes
-	}
-	if !force && state != nil {
-		if state.pendingBytes < streamFlushByteThreshold && time.Since(state.lastFlushTime) < streamFlushTimeThreshold {
-			return nil
-		}
-	}
-	if err := FlushWriter(c); err != nil {
-		return err
-	}
-	if state != nil {
-		state.pendingBytes = 0
-		state.lastFlushTime = time.Now()
-	}
-	return nil
-}
 
 func FlushWriter(c *gin.Context) (err error) {
 	defer func() {
@@ -84,10 +36,6 @@ func FlushWriter(c *gin.Context) (err error) {
 
 	flusher.Flush()
 	return nil
-}
-
-func FlushPendingWriter(c *gin.Context) error {
-	return maybeFlushWriter(c, true, 0)
 }
 
 func SetEventStreamHeaders(c *gin.Context) {
@@ -114,20 +62,20 @@ func ClaudeData(c *gin.Context, resp dto.ClaudeResponse) error {
 		c.Render(-1, common.CustomEvent{Data: fmt.Sprintf("event: %s\n", resp.Type)})
 		c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonData)})
 	}
-	_ = maybeFlushWriter(c, false, len(resp.Type)+len(jsonData)+16)
+	_ = FlushWriter(c)
 	return nil
 }
 
 func ClaudeChunkData(c *gin.Context, resp dto.ClaudeResponse, data string) {
 	c.Render(-1, common.CustomEvent{Data: fmt.Sprintf("event: %s\n", resp.Type)})
 	c.Render(-1, common.CustomEvent{Data: fmt.Sprintf("data: %s\n", data)})
-	_ = maybeFlushWriter(c, false, len(resp.Type)+len(data)+16)
+	_ = FlushWriter(c)
 }
 
 func ResponseChunkData(c *gin.Context, resp dto.ResponsesStreamResponse, data string) {
 	c.Render(-1, common.CustomEvent{Data: fmt.Sprintf("event: %s\n", resp.Type)})
 	c.Render(-1, common.CustomEvent{Data: fmt.Sprintf("data: %s", data)})
-	_ = maybeFlushWriter(c, false, len(resp.Type)+len(data)+16)
+	_ = FlushWriter(c)
 }
 
 func StringData(c *gin.Context, str string) error {
@@ -140,7 +88,7 @@ func StringData(c *gin.Context, str string) error {
 	}
 
 	c.Render(-1, common.CustomEvent{Data: "data: " + str})
-	return maybeFlushWriter(c, false, len(str)+8)
+	return FlushWriter(c)
 }
 
 func PingData(c *gin.Context) error {
@@ -155,7 +103,7 @@ func PingData(c *gin.Context) error {
 	if _, err := c.Writer.Write([]byte(": PING\n\n")); err != nil {
 		return fmt.Errorf("write ping data failed: %w", err)
 	}
-	return maybeFlushWriter(c, true, len(": PING\n\n"))
+	return FlushWriter(c)
 }
 
 func ObjectData(c *gin.Context, object interface{}) error {
@@ -170,10 +118,7 @@ func ObjectData(c *gin.Context, object interface{}) error {
 }
 
 func Done(c *gin.Context) {
-	if err := StringData(c, "[DONE]"); err != nil {
-		return
-	}
-	_ = FlushPendingWriter(c)
+	_ = StringData(c, "[DONE]")
 }
 
 func WssString(c *gin.Context, ws *websocket.Conn, str string) error {

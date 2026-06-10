@@ -1,17 +1,20 @@
 .idea
 .vscode
 .zed
+.history
 upload
 *.exe
 *.db
 build
 *.db-journal
 logs
+web/default/dist
+web/classic/dist
+web/node_modules
 web/dist
 .env
 one-api
 new-api
-/scripts_local/
 /__debug_bin*
 .DS_Store
 tiktoken_cache
@@ -19,12 +22,9 @@ tiktoken_cache
 .gocache
 .gomodcache/
 .cache
-.tmp/
-.tmp-go-cache/
-.tmp-go-modcache/
-.tmp-go-telemetry/
-web/bun.lock
 plans
+.claude
+.cursor
 
 electron/node_modules
 electron/dist
@@ -32,4 +32,6 @@ data/
 .gomodcache/
 .gocache-temp
 .gopath
-scripts/
+.test
+token_estimator_test.go
+skills-lock.json

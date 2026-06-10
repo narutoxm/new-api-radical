@@ -67,17 +67,10 @@ func UserCheckin(userId int) (*Checkin, error) {
 		return nil, errors.New("今日已签到")
 	}
 
-	// 计算额度奖励：支持固定模式和随机模式
-	var quotaAwarded int
-	if setting.RandomMode {
-		// 随机模式（上游默认行为）
-		quotaAwarded = setting.MinQuota
-		if setting.MaxQuota > setting.MinQuota {
-			quotaAwarded = setting.MinQuota + rand.Intn(setting.MaxQuota-setting.MinQuota+1)
-		}
-	} else {
-		// 固定模式（扩展功能）
-		quotaAwarded = setting.FixedQuota
+	// 计算随机额度奖励
+	quotaAwarded := setting.MinQuota
+	if setting.MaxQuota > setting.MinQuota {
+		quotaAwarded = setting.MinQuota + rand.Intn(setting.MaxQuota-setting.MinQuota+1)
 	}
 
 	today := time.Now().Format("2006-01-02")

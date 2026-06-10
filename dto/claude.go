@@ -94,8 +94,22 @@ func (c *ClaudeMediaMessage) SetContent(content any) {
 }
 
 func (c *ClaudeMediaMessage) ParseMediaContent() []ClaudeMediaMessage {
-	mediaContent, _ := parseClaudeMediaMessagesFast(c.Content)
+	mediaContent, _ := common.Any2Type[[]ClaudeMediaMessage](c.Content)
 	return mediaContent
+}
+
+func (m *ClaudeMediaMessage) ToFileSource() types.FileSource {
+	if m.Source == nil {
+		return nil
+	}
+	data := m.Source.Url
+	if data == "" {
+		data = common.Interface2String(m.Source.Data)
+	}
+	if data == "" {
+		return nil
+	}
+	return types.NewFileSourceFromData(data, m.Source.MediaType)
 }
 
 type ClaudeMessageSource struct {
@@ -153,7 +167,7 @@ func (c *ClaudeMessage) SetContent(content any) {
 }
 
 func (c *ClaudeMessage) ParseContent() ([]ClaudeMediaMessage, error) {
-	return parseClaudeMediaMessagesFast(c.Content)
+	return common.Any2Type[[]ClaudeMediaMessage](c.Content)
 }
 
 type Tool struct {
@@ -190,20 +204,21 @@ type ClaudeToolChoice struct {
 }
 
 type ClaudeRequest struct {
-	Model    string          `json:"model"`
-	Prompt   string          `json:"prompt,omitempty"`
-	System   any             `json:"system,omitempty"`
-	Messages []ClaudeMessage `json:"messages,omitempty"`
+	Model        string          `json:"model"`
+	Prompt       string          `json:"prompt,omitempty"`
+	System       any             `json:"system,omitempty"`
+	Messages     []ClaudeMessage `json:"messages,omitempty"`
+	CacheControl json.RawMessage `json:"cache_control,omitempty"`
 	// InferenceGeo controls Claude data residency region.
 	// This field is filtered by default and can be enabled via channel setting allow_inference_geo.
 	InferenceGeo      string          `json:"inference_geo,omitempty"`
-	MaxTokens         uint            `json:"max_tokens,omitempty"`
-	MaxTokensToSample uint            `json:"max_tokens_to_sample,omitempty"`
+	MaxTokens         *uint           `json:"max_tokens,omitempty"`
+	MaxTokensToSample *uint           `json:"max_tokens_to_sample,omitempty"`
 	StopSequences     []string        `json:"stop_sequences,omitempty"`
 	Temperature       *float64        `json:"temperature,omitempty"`
-	TopP              float64         `json:"top_p,omitempty"`
-	TopK              int             `json:"top_k,omitempty"`
-	Stream            bool            `json:"stream,omitempty"`
+	TopP              *float64        `json:"top_p,omitempty"`
+	TopK              *int            `json:"top_k,omitempty"`
+	Stream            *bool           `json:"stream,omitempty"`
 	Tools             any             `json:"tools,omitempty"`
 	ContextManagement json.RawMessage `json:"context_management,omitempty"`
 	OutputConfig      json.RawMessage `json:"output_config,omitempty"`
@@ -213,186 +228,27 @@ type ClaudeRequest struct {
 	Thinking          *Thinking       `json:"thinking,omitempty"`
 	McpServers        json.RawMessage `json:"mcp_servers,omitempty"`
 	Metadata          json.RawMessage `json:"metadata,omitempty"`
+	// Speed specifies the Claude inference speed mode.
+	// This field is filtered by default and can be enabled via channel setting allow_speed.
+	Speed json.RawMessage `json:"speed,omitempty"`
 	// ServiceTier specifies upstream service level and may affect billing.
 	// This field is filtered by default and can be enabled via channel setting allow_service_tier.
-	ServiceTier      string            `json:"service_tier,omitempty"`
-	toolNameByCallID map[string]string `json:"-"`
+	ServiceTier string `json:"service_tier,omitempty"`
 }
 
-func claudeStringFromAny(data any) string {
-	if s, ok := data.(string); ok {
-		return s
-	}
-	return ""
-}
-
-func claudeStringPointerFromMap(data map[string]any, key string) *string {
-	s, ok := data[key].(string)
-	if !ok {
-		return nil
-	}
-	return &s
-}
-
-func parseClaudeMessageSourceFast(data any) (*ClaudeMessageSource, error) {
-	switch v := data.(type) {
-	case nil:
-		return nil, nil
-	case ClaudeMessageSource:
-		return &v, nil
-	case *ClaudeMessageSource:
-		return v, nil
-	case map[string]any:
-		return &ClaudeMessageSource{
-			Type:      claudeStringFromAny(v["type"]),
-			MediaType: claudeStringFromAny(v["media_type"]),
-			Data:      v["data"],
-			Url:       claudeStringFromAny(v["url"]),
-		}, nil
-	default:
-		res, err := common.Any2Type[ClaudeMessageSource](data)
-		if err != nil {
-			return nil, err
-		}
-		return &res, nil
-	}
-}
-
-func parseClaudeUsageFast(data any) (*ClaudeUsage, error) {
-	switch v := data.(type) {
-	case nil:
-		return nil, nil
-	case ClaudeUsage:
-		return &v, nil
-	case *ClaudeUsage:
-		return v, nil
-	default:
-		res, err := common.Any2Type[ClaudeUsage](data)
-		if err != nil {
-			return nil, err
-		}
-		return &res, nil
-	}
-}
-
-func parseClaudeRawMessageFast(data any) (json.RawMessage, error) {
-	switch v := data.(type) {
-	case nil:
-		return nil, nil
-	case json.RawMessage:
-		return v, nil
-	case []byte:
-		return json.RawMessage(v), nil
-	case string:
-		return json.RawMessage(v), nil
-	default:
-		res, err := common.Marshal(v)
-		if err != nil {
-			return nil, err
-		}
-		return json.RawMessage(res), nil
-	}
-}
-
-func parseClaudeMediaMessageItemFast(item any) (ClaudeMediaMessage, error) {
-	switch v := item.(type) {
-	case ClaudeMediaMessage:
-		return v, nil
-	case *ClaudeMediaMessage:
-		if v == nil {
-			return ClaudeMediaMessage{}, nil
-		}
-		return *v, nil
-	case map[string]any:
-		source, err := parseClaudeMessageSourceFast(v["source"])
-		if err != nil {
-			return ClaudeMediaMessage{}, err
-		}
-		usage, err := parseClaudeUsageFast(v["usage"])
-		if err != nil {
-			return ClaudeMediaMessage{}, err
-		}
-		cacheControl, err := parseClaudeRawMessageFast(v["cache_control"])
-		if err != nil {
-			return ClaudeMediaMessage{}, err
-		}
-		return ClaudeMediaMessage{
-			Type:         claudeStringFromAny(v["type"]),
-			Text:         claudeStringPointerFromMap(v, "text"),
-			Model:        claudeStringFromAny(v["model"]),
-			Source:       source,
-			Usage:        usage,
-			StopReason:   claudeStringPointerFromMap(v, "stop_reason"),
-			PartialJson:  claudeStringPointerFromMap(v, "partial_json"),
-			Role:         claudeStringFromAny(v["role"]),
-			Thinking:     claudeStringPointerFromMap(v, "thinking"),
-			Signature:    claudeStringFromAny(v["signature"]),
-			Delta:        claudeStringFromAny(v["delta"]),
-			CacheControl: cacheControl,
-			Id:           claudeStringFromAny(v["id"]),
-			Name:         claudeStringFromAny(v["name"]),
-			Input:        v["input"],
-			Content:      v["content"],
-			ToolUseId:    claudeStringFromAny(v["tool_use_id"]),
-		}, nil
-	default:
-		return common.Any2Type[ClaudeMediaMessage](item)
-	}
-}
-
-func parseClaudeMediaMessagesFast(data any) ([]ClaudeMediaMessage, error) {
-	switch v := data.(type) {
-	case nil:
-		return nil, nil
-	case []ClaudeMediaMessage:
-		return v, nil
-	case []*ClaudeMediaMessage:
-		mediaContent := make([]ClaudeMediaMessage, 0, len(v))
-		for _, item := range v {
-			if item == nil {
-				mediaContent = append(mediaContent, ClaudeMediaMessage{})
-				continue
-			}
-			mediaContent = append(mediaContent, *item)
-		}
-		return mediaContent, nil
-	case []any:
-		mediaContent := make([]ClaudeMediaMessage, 0, len(v))
-		for _, item := range v {
-			mediaMessage, err := parseClaudeMediaMessageItemFast(item)
-			if err != nil {
-				return common.Any2Type[[]ClaudeMediaMessage](data)
-			}
-			mediaContent = append(mediaContent, mediaMessage)
-		}
-		return mediaContent, nil
-	case []map[string]any:
-		mediaContent := make([]ClaudeMediaMessage, 0, len(v))
-		for _, item := range v {
-			mediaMessage, err := parseClaudeMediaMessageItemFast(item)
-			if err != nil {
-				return common.Any2Type[[]ClaudeMediaMessage](data)
-			}
-			mediaContent = append(mediaContent, mediaMessage)
-		}
-		return mediaContent, nil
-	default:
-		return common.Any2Type[[]ClaudeMediaMessage](data)
-	}
-}
-
-// createClaudeFileSource 根据数据内容创建正确类型的 FileSource
-func createClaudeFileSource(data string) *types.FileSource {
-	if strings.HasPrefix(data, "http://") || strings.HasPrefix(data, "https://") {
-		return types.NewURLFileSource(data)
-	}
-	return types.NewBase64FileSource(data, "")
+// OutputConfigForEffort just for extract effort
+type OutputConfigForEffort struct {
+	Effort string `json:"effort,omitempty"`
 }
 
 func (c *ClaudeRequest) GetTokenCountMeta() *types.TokenCountMeta {
+	maxTokens := 0
+	if c.MaxTokens != nil {
+		maxTokens = int(*c.MaxTokens)
+	}
 	var tokenCountMeta = types.TokenCountMeta{
 		TokenType: types.TokenTypeTokenizer,
-		MaxTokens: int(c.MaxTokens),
+		MaxTokens: maxTokens,
 	}
 
 	var texts = make([]string, 0)
@@ -412,17 +268,11 @@ func (c *ClaudeRequest) GetTokenCountMeta() *types.TokenCountMeta {
 				case "text":
 					texts = append(texts, media.GetText())
 				case "image":
-					if media.Source != nil {
-						data := media.Source.Url
-						if data == "" {
-							data = common.Interface2String(media.Source.Data)
-						}
-						if data != "" {
-							fileMeta = append(fileMeta, &types.FileMeta{
-								FileType: types.FileTypeImage,
-								Source:   createClaudeFileSource(data),
-							})
-						}
+					if source := media.ToFileSource(); source != nil {
+						fileMeta = append(fileMeta, &types.FileMeta{
+							FileType: types.FileTypeImage,
+							Source:   source,
+						})
 					}
 				}
 			}
@@ -447,17 +297,11 @@ func (c *ClaudeRequest) GetTokenCountMeta() *types.TokenCountMeta {
 			case "text":
 				texts = append(texts, media.GetText())
 			case "image":
-				if media.Source != nil {
-					data := media.Source.Url
-					if data == "" {
-						data = common.Interface2String(media.Source.Data)
-					}
-					if data != "" {
-						fileMeta = append(fileMeta, &types.FileMeta{
-							FileType: types.FileTypeImage,
-							Source:   createClaudeFileSource(data),
-						})
-					}
+				if source := media.ToFileSource(); source != nil {
+					fileMeta = append(fileMeta, &types.FileMeta{
+						FileType: types.FileTypeImage,
+						Source:   source,
+					})
 				}
 			case "tool_use":
 				if media.Name != "" {
@@ -515,7 +359,10 @@ func (c *ClaudeRequest) GetTokenCountMeta() *types.TokenCountMeta {
 }
 
 func (c *ClaudeRequest) IsStream(ctx *gin.Context) bool {
-	return c.Stream
+	if c.Stream == nil {
+		return false
+	}
+	return *c.Stream
 }
 
 func (c *ClaudeRequest) SetModelName(modelName string) {
@@ -525,33 +372,15 @@ func (c *ClaudeRequest) SetModelName(modelName string) {
 }
 
 func (c *ClaudeRequest) SearchToolNameByToolCallId(toolCallId string) string {
-	if toolCallId == "" {
-		return ""
-	}
-	c.ensureToolNameIndex()
-	return c.toolNameByCallID[toolCallId]
-}
-
-func (c *ClaudeRequest) ensureToolNameIndex() {
-	if c.toolNameByCallID != nil {
-		return
-	}
-	c.toolNameByCallID = make(map[string]string)
 	for _, message := range c.Messages {
-		if message.IsStringContent() {
-			continue
-		}
-		content, err := message.ParseContent()
-		if err != nil {
-			continue
-		}
+		content, _ := message.ParseContent()
 		for _, mediaMessage := range content {
-			if mediaMessage.Type != "tool_use" || mediaMessage.Id == "" || mediaMessage.Name == "" {
-				continue
+			if mediaMessage.Id == toolCallId {
+				return mediaMessage.Name
 			}
-			c.toolNameByCallID[mediaMessage.Id] = mediaMessage.Name
 		}
 	}
+	return ""
 }
 
 // AddTool 添加工具到请求中
@@ -583,6 +412,15 @@ func (c *ClaudeRequest) GetTools() []any {
 	}
 }
 
+func (c *ClaudeRequest) GetEfforts() string {
+	var OutputConfig OutputConfigForEffort
+	if err := json.Unmarshal(c.OutputConfig, &OutputConfig); err == nil {
+		effort := OutputConfig.Effort
+		return effort
+	}
+	return ""
+}
+
 // ProcessTools 处理工具列表，支持类型断言
 func ProcessTools(tools []any) ([]*Tool, []*ClaudeWebSearchTool) {
 	var normalTools []*Tool
@@ -608,8 +446,13 @@ func ProcessTools(tools []any) ([]*Tool, []*ClaudeWebSearchTool) {
 }
 
 type Thinking struct {
-	Type         string `json:"type"`
+	Type         string `json:"type,omitempty"`
 	BudgetTokens *int   `json:"budget_tokens,omitempty"`
+	// Display controls whether thinking content is returned in the response.
+	// Used with adaptive thinking on Claude Opus 4.7+: "summarized" restores
+	// the visible summary that was default on Opus 4.6; "omitted" (default on
+	// 4.7) suppresses it. Pass-through field from upstream Anthropic API.
+	Display string `json:"display,omitempty"`
 }
 
 func (c *Thinking) GetBudgetTokens() int {
@@ -636,7 +479,7 @@ func (c *ClaudeRequest) SetStringSystem(system string) {
 }
 
 func (c *ClaudeRequest) ParseSystem() []ClaudeMediaMessage {
-	mediaContent, _ := parseClaudeMediaMessagesFast(c.System)
+	mediaContent, _ := common.Any2Type[[]ClaudeMediaMessage](c.System)
 	return mediaContent
 }
 

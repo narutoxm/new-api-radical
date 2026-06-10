@@ -43,18 +43,12 @@ func xAIStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 
 	helper.SetEventStreamHeaders(c)
 
-	service.RecentCallsCache().EnsureStreamByContext(c, resp)
-
-	helper.StreamScannerHandler(c, resp, info, func(data string) bool {
-		if data != "" {
-			service.RecentCallsCache().AppendStreamChunkByContext(c, data)
-		}
-
+	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
 		var xAIResp *dto.ChatCompletionsStreamResponse
-		err := common.UnmarshalJsonStr(data, &xAIResp)
-		if err != nil {
+		if err := common.UnmarshalJsonStr(data, &xAIResp); err != nil {
 			common.SysLog("error unmarshalling stream response: " + err.Error())
-			return true
+			sr.Error(err)
+			return
 		}
 
 		// 把 xAI 的usage转换为 OpenAI 的usage
@@ -67,14 +61,11 @@ func xAIStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 
 		openaiResponse := streamResponseXAI2OpenAI(xAIResp, usage)
 		_ = openai.ProcessStreamResponse(*openaiResponse, &responseTextBuilder, &toolCount)
-		err = helper.ObjectData(c, openaiResponse)
-		if err != nil {
+		if err := helper.ObjectData(c, openaiResponse); err != nil {
 			common.SysLog(err.Error())
+			sr.Error(err)
 		}
-		return true
 	})
-
-	service.RecentCallsCache().FinalizeStreamAggregatedTextByContext(c, responseTextBuilder.String())
 
 	if !containStreamUsage {
 		usage = service.ResponseText2Usage(c, responseTextBuilder.String(), info.UpstreamModelName, info.GetEstimatePromptTokens())
