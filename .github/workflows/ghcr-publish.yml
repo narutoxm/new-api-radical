@@ -25,7 +25,7 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             echo "${GITHUB_REF_NAME}" > VERSION
           elif [[ ! -s VERSION ]]; then
-            echo "v1.0.0-rc.1" > VERSION
+            echo "v1.0.0-rc.10" > VERSION
           fi
 
       - name: Set up Docker Buildx
