@@ -32,8 +32,14 @@ func SetWebRouter(router *gin.Engine, assets ThemeAssets) {
 	router.Use(static.Serve("/", themeFS))
 	router.NoRoute(func(c *gin.Context) {
 		c.Set(middleware.RouteTagKey, "web")
-		if strings.HasPrefix(c.Request.RequestURI, "/v1") || strings.HasPrefix(c.Request.RequestURI, "/api") || strings.HasPrefix(c.Request.RequestURI, "/assets") {
+		requestPath := c.Request.URL.Path
+		if strings.HasPrefix(requestPath, "/v1") || strings.HasPrefix(requestPath, "/api") || strings.HasPrefix(requestPath, "/assets") {
 			controller.RelayNotFound(c)
+			return
+		}
+		if strings.HasPrefix(requestPath, "/static/") {
+			c.Header("Cache-Control", "no-cache")
+			c.String(http.StatusNotFound, "404 page not found")
 			return
 		}
 		c.Header("Cache-Control", "no-cache")
