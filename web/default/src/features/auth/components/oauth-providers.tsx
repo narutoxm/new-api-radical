@@ -27,7 +27,7 @@ import {
   IconTelegram,
   IconWeChat,
 } from '@/assets/brand-icons'
-import { useAuthStore } from '@/stores/auth-store'
+import { useAuthStore, type AuthUser } from '@/stores/auth-store'
 import { api, getSelf } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -92,13 +92,22 @@ export function OAuthProviders({
           return
         }
 
-        const selfResponse = await getSelf()
-        if (selfResponse?.success && selfResponse.data) {
-          auth.setUser(selfResponse.data)
+        const loginUser = (res.data?.data ?? null) as AuthUser | null
+        if (loginUser?.id != null) {
+          auth.setUser(loginUser)
           try {
-            window.localStorage.setItem('uid', String(selfResponse.data.id))
+            window.localStorage.setItem('uid', String(loginUser.id))
           } catch {
             /* empty */
+          }
+
+          try {
+            const selfResponse = await getSelf()
+            if (selfResponse?.success && selfResponse.data) {
+              auth.setUser(selfResponse.data)
+            }
+          } catch {
+            // The login payload is enough for the dashboard to continue.
           }
         }
         toast.success(t('Signed in successfully!'))
