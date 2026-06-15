@@ -186,7 +186,8 @@ export function useOAuthLogin(status: SystemStatus | null) {
   }
 
   const handleTelegramLogin = () => {
-    toast.info(t('Telegram login requires widget integration; coming soon'))
+    // Telegram uses its Login Widget instead of a normal OAuth redirect.
+    // The sign-in component opens a dialog that mounts the widget.
   }
 
   const handleCustomOAuthLogin = async (provider: CustomOAuthProviderInfo) => {

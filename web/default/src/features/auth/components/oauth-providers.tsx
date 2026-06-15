@@ -17,17 +17,30 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import type { ReactNode } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import {
   IconDiscord,
   IconGithub,
   IconLinuxDo,
+  IconTelegram,
   IconWeChat,
 } from '@/assets/brand-icons'
+import { useAuthStore } from '@/stores/auth-store'
+import { api, getSelf } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useOAuthLogin } from '../hooks/use-oauth-login'
 import type { SystemStatus } from '../types'
+import { TelegramLoginWidget } from './telegram-login-widget'
 
 type OAuthProvidersProps = {
   status: SystemStatus | null
@@ -53,6 +66,8 @@ export function OAuthProviders({
   isWeChatLoading = false,
 }: OAuthProvidersProps) {
   const { t } = useTranslation()
+  const [telegramOpen, setTelegramOpen] = useState(false)
+  const { auth } = useAuthStore()
   const {
     isLoading,
     githubButtonText,
@@ -64,6 +79,38 @@ export function OAuthProviders({
     handleTelegramLogin,
     handleCustomOAuthLogin,
   } = useOAuthLogin(status)
+
+  const handleTelegramAuth = useCallback(
+    async (payload: Record<string, string | number | undefined>) => {
+      try {
+        const res = await api.get('/api/oauth/telegram/login', {
+          params: payload,
+          skipBusinessError: true,
+        })
+        if (!res?.data?.success) {
+          toast.error(res?.data?.message || t('Telegram login failed'))
+          return
+        }
+
+        const selfResponse = await getSelf()
+        if (selfResponse?.success && selfResponse.data) {
+          auth.setUser(selfResponse.data)
+          try {
+            window.localStorage.setItem('uid', String(selfResponse.data.id))
+          } catch {
+            /* empty */
+          }
+        }
+        toast.success(t('Signed in successfully!'))
+        window.location.assign('/dashboard')
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : t('Telegram login failed')
+        toast.error(message)
+      }
+    },
+    [auth, t]
+  )
 
   const providerButtons: ProviderButton[] = []
 
@@ -117,7 +164,11 @@ export function OAuthProviders({
     providerButtons.push({
       key: 'telegram',
       label: t('Continue with Telegram'),
-      onClick: handleTelegramLogin,
+      onClick: () => {
+        handleTelegramLogin()
+        setTelegramOpen(true)
+      },
+      icon: <IconTelegram className='h-4 w-4' />,
     })
   }
 
@@ -136,35 +187,54 @@ export function OAuthProviders({
   if (providerButtons.length === 0) return null
 
   return (
-    <div className={cn('space-y-3', className)}>
-      <div className='relative'>
-        <div className='absolute inset-0 flex items-center'>
-          <span className='w-full border-t' />
+    <>
+      <div className={cn('space-y-3', className)}>
+        <div className='relative'>
+          <div className='absolute inset-0 flex items-center'>
+            <span className='w-full border-t' />
+          </div>
+          <div className='relative flex justify-center text-xs uppercase'>
+            <span className='bg-background text-muted-foreground px-2'>
+              {t('Or continue with')}
+            </span>
+          </div>
         </div>
-        <div className='relative flex justify-center text-xs uppercase'>
-          <span className='bg-background text-muted-foreground px-2'>
-            {t('Or continue with')}
-          </span>
+
+        <div className='flex flex-col gap-2'>
+          {providerButtons.map(
+            ({ key, label, onClick, icon, disabled: extraDisabled }) => (
+              <Button
+                key={key}
+                variant='outline'
+                type='button'
+                disabled={disabled || isLoading || extraDisabled}
+                onClick={onClick}
+                className='h-11 w-full justify-center gap-2 rounded-lg'
+              >
+                {icon}
+                {label}
+              </Button>
+            )
+          )}
         </div>
       </div>
 
-      <div className='flex flex-col gap-2'>
-        {providerButtons.map(
-          ({ key, label, onClick, icon, disabled: extraDisabled }) => (
-            <Button
-              key={key}
-              variant='outline'
-              type='button'
-              disabled={disabled || isLoading || extraDisabled}
-              onClick={onClick}
-              className='h-11 w-full justify-center gap-2 rounded-lg'
-            >
-              {icon}
-              {label}
-            </Button>
-          )
-        )}
-      </div>
-    </div>
+      <Dialog open={telegramOpen} onOpenChange={setTelegramOpen}>
+        <DialogContent className='sm:max-w-sm'>
+          <DialogHeader>
+            <DialogTitle>{t('Continue with Telegram')}</DialogTitle>
+            <DialogDescription>
+              {t('Authorize with Telegram to sign in.')}
+            </DialogDescription>
+          </DialogHeader>
+          {status?.telegram_bot_name ? (
+            <TelegramLoginWidget
+              botName={String(status.telegram_bot_name)}
+              onAuth={handleTelegramAuth}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

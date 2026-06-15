@@ -18,6 +18,8 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { Send } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+import { api } from '@/lib/api'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Dialog,
@@ -26,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { TelegramLoginWidget } from '@/features/auth/components/telegram-login-widget'
 
 // ============================================================================
 // Telegram Bind Dialog Component
@@ -42,8 +45,31 @@ export function TelegramBindDialog({
   open,
   onOpenChange,
   botName,
+  onSuccess,
 }: TelegramBindDialogProps) {
   const { t } = useTranslation()
+  const handleAuth = async (
+    payload: Record<string, string | number | undefined>
+  ) => {
+    try {
+      const res = await api.get('/api/oauth/telegram/bind', {
+        params: payload,
+        skipBusinessError: true,
+      })
+      if (!res?.data?.success) {
+        toast.error(res?.data?.message || t('Telegram login failed'))
+        return
+      }
+      toast.success(t('Binding successful!'))
+      onOpenChange(false)
+      onSuccess()
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : t('Telegram login failed')
+      toast.error(message)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='sm:max-w-md'>
@@ -81,13 +107,10 @@ export function TelegramBindDialog({
               </p>
             </div>
 
-            {/* Telegram Login Widget will be injected here by react-telegram-login */}
-            <div id='telegram-login-widget' className='flex justify-center'>
-              {/* This would require the react-telegram-login library */}
-              <div className='text-muted-foreground rounded-lg border border-dashed px-6 py-3 text-sm'>
-                {t('Telegram Login Widget')}
-              </div>
-            </div>
+            <TelegramLoginWidget
+              botName={botName}
+              onAuth={handleAuth}
+            />
           </div>
 
           <p className='text-muted-foreground text-center text-xs'>
