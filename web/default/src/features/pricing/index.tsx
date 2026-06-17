@@ -30,7 +30,7 @@ import {
   ModelCardGrid,
   ModelDetailsDrawer,
 } from './components'
-import { EXCLUDED_GROUPS, VIEW_MODES } from './constants'
+import { EXCLUDED_GROUPS, FILTER_ALL, VIEW_MODES } from './constants'
 import { useFilters } from './hooks/use-filters'
 import { usePricingData } from './hooks/use-pricing-data'
 
@@ -103,6 +103,9 @@ export function Pricing() {
     [usableGroup]
   )
 
+  const selectedPricingGroup =
+    groupFilter !== FILTER_ALL ? groupFilter : undefined
+
   const handleClearAll = useCallback(() => {
     clearFilters()
     clearSearch()
@@ -128,6 +131,7 @@ export function Pricing() {
           usdExchangeRate={usdExchangeRate}
           tokenUnit={tokenUnit}
           showRechargePrice={showRechargePrice}
+          selectedGroup={selectedPricingGroup}
         />
       )
     }
@@ -139,6 +143,7 @@ export function Pricing() {
         usdExchangeRate={usdExchangeRate}
         tokenUnit={tokenUnit}
         showRechargePrice={showRechargePrice}
+        selectedGroup={selectedPricingGroup}
         onModelClick={handleModelClick}
       />
     )

@@ -153,6 +153,7 @@ export function useFilters(models: PricingModel[]) {
       endpointType: endpointTypeFilter,
       tag: tagFilter,
       sortBy,
+      selectedGroup: groupFilter === FILTER_ALL ? undefined : groupFilter,
     })
   }, [
     models,
