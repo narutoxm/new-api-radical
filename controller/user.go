@@ -343,10 +343,6 @@ type TransferAffQuotaRequest struct {
 }
 
 func TransferAffQuota(c *gin.Context) {
-	if !requirePaymentCompliance(c) {
-		return
-	}
-
 	id := c.GetInt("id")
 	user, err := model.GetUserById(id, true)
 	if err != nil {
