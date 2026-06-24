@@ -21,7 +21,6 @@ import * as z from 'zod'
 import type { Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Form,
   FormControl,
@@ -65,13 +64,9 @@ type QuotaFormValues = z.infer<typeof quotaSchema>
 
 type QuotaSettingsSectionProps = {
   defaultValues: QuotaFormValues
-  complianceConfirmed?: boolean
 }
 
-export function QuotaSettingsSection({
-  defaultValues,
-  complianceConfirmed = true,
-}: QuotaSettingsSectionProps) {
+export function QuotaSettingsSection({ defaultValues }: QuotaSettingsSectionProps) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
   const handleNumberChange =
@@ -103,16 +98,6 @@ export function QuotaSettingsSection({
   return (
     <SettingsSection title={t('Quota Settings')}>
       <FormNavigationGuard when={isDirty} />
-
-      {!complianceConfirmed ? (
-        <Alert variant='destructive'>
-          <AlertDescription>
-            {t(
-              'Non-zero invitation rewards require compliance confirmation in Payment Gateway settings.'
-            )}
-          </AlertDescription>
-        </Alert>
-      ) : null}
 
       <Form {...form}>
         <SettingsForm onSubmit={handleSubmit}>
@@ -175,10 +160,11 @@ export function QuotaSettingsSection({
               name='QuotaForInviter'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('Inviter Reward')}</FormLabel>
+                  <FormLabel>{t('Legacy Registration Inviter Reward')}</FormLabel>
                   <FormControl>
                     <Input
                       type='number'
+                      disabled
                       value={field.value ?? ''}
                       onChange={handleNumberChange(field.onChange)}
                       name={field.name}
@@ -187,7 +173,9 @@ export function QuotaSettingsSection({
                     />
                   </FormControl>
                   <FormDescription>
-                    {t('Quota given to users who invite others')}
+                    {t(
+                      'No longer used. Referral rewards are now 15% after a single top-up over 100 is spent.'
+                    )}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -199,10 +187,11 @@ export function QuotaSettingsSection({
               name='QuotaForInvitee'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('Invitee Reward')}</FormLabel>
+                  <FormLabel>{t('Legacy Registration Invitee Reward')}</FormLabel>
                   <FormControl>
                     <Input
                       type='number'
+                      disabled
                       value={field.value ?? ''}
                       onChange={handleNumberChange(field.onChange)}
                       name={field.name}
@@ -211,7 +200,9 @@ export function QuotaSettingsSection({
                     />
                   </FormControl>
                   <FormDescription>
-                    {t('Quota given to invited users')}
+                    {t(
+                      'No longer used. Invited users no longer receive quota just for registering.'
+                    )}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

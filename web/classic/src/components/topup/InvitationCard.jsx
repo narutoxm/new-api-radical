@@ -27,7 +27,7 @@ import {
   Badge,
   Space,
 } from '@douyinfe/semi-ui';
-import { Copy, Users, BarChart2, TrendingUp, Gift, Zap } from 'lucide-react';
+import { Copy, Users, BarChart2, TrendingUp, Gift } from 'lucide-react';
 
 const { Text } = Typography;
 
@@ -35,11 +35,11 @@ const InvitationCard = ({
   t,
   userState,
   renderQuota,
-  setOpenTransfer,
   affLink,
   handleAffLinkClick,
-  complianceConfirmed = true,
 }) => {
+  const hasAffLink = Boolean(affLink);
+
   return (
     <Card className='!rounded-2xl shadow-sm border-0'>
       {/* 卡片头部 */}
@@ -51,7 +51,7 @@ const InvitationCard = ({
           <Typography.Text className='text-lg font-medium'>
             {t('邀请奖励')}
           </Typography.Text>
-          <div className='text-xs'>{t('邀请好友获得额外奖励')}</div>
+          <div className='text-xs'>{t('邀请奖励仅用于展示统计')}</div>
         </div>
       </div>
 
@@ -77,42 +77,17 @@ const InvitationCard = ({
                   <Text strong style={{ color: 'white', fontSize: '16px' }}>
                     {t('收益统计')}
                   </Text>
-                  <Button
-                    type='primary'
-                    theme='solid'
-                    size='small'
-                    disabled={
-                      !complianceConfirmed ||
-                      !userState?.user?.aff_quota ||
-                      userState?.user?.aff_quota <= 0
-                    }
-                    onClick={() => setOpenTransfer(true)}
-                    className='!rounded-lg'
-                  >
-                    <Zap size={12} className='mr-1' />
-                    {t('划转到余额')}
-                  </Button>
                 </div>
-                {!complianceConfirmed && (
-                  <Text
-                    style={{
-                      color: 'rgba(255,255,255,0.8)',
-                      fontSize: 12,
-                    }}
-                  >
-                    {t('邀请奖励划转已禁用，管理员需先确认合规声明。')}
-                  </Text>
-                )}
 
                 {/* 统计数据 */}
                 <div className='grid grid-cols-3 gap-6 mt-4'>
-                  {/* 待使用收益 */}
+                  {/* 展示收益 */}
                   <div className='text-center'>
                     <div
                       className='text-base sm:text-2xl font-bold mb-2'
                       style={{ color: 'white' }}
                     >
-                      {renderQuota(userState?.user?.aff_quota || 0)}
+                      {renderQuota(userState?.user?.aff_history_quota || 0)}
                     </div>
                     <div className='flex items-center justify-center text-sm'>
                       <TrendingUp
@@ -126,18 +101,18 @@ const InvitationCard = ({
                           fontSize: '12px',
                         }}
                       >
-                        {t('待使用收益')}
+                        {t('展示收益')}
                       </Text>
                     </div>
                   </div>
 
-                  {/* 总收益 */}
+                  {/* 余额入账 */}
                   <div className='text-center'>
                     <div
                       className='text-base sm:text-2xl font-bold mb-2'
                       style={{ color: 'white' }}
                     >
-                      {renderQuota(userState?.user?.aff_history_quota || 0)}
+                      {renderQuota(0)}
                     </div>
                     <div className='flex items-center justify-center text-sm'>
                       <BarChart2
@@ -151,7 +126,7 @@ const InvitationCard = ({
                           fontSize: '12px',
                         }}
                       >
-                        {t('总收益')}
+                        {t('余额入账')}
                       </Text>
                     </div>
                   </div>
@@ -187,7 +162,7 @@ const InvitationCard = ({
         >
           {/* 邀请链接部分 */}
           <Input
-            value={affLink}
+            value={hasAffLink ? affLink : t('当前账号未启用邀请码')}
             readonly
             className='!rounded-lg'
             prefix={t('邀请链接')}
@@ -196,6 +171,7 @@ const InvitationCard = ({
                 type='primary'
                 theme='solid'
                 onClick={handleAffLinkClick}
+                disabled={!hasAffLink}
                 icon={<Copy size={14} />}
                 className='!rounded-lg'
               >
@@ -214,14 +190,16 @@ const InvitationCard = ({
             <div className='flex items-start gap-2'>
               <Badge dot type='success' />
               <Text type='tertiary' className='text-sm'>
-                {t('邀请好友注册，好友充值后您可获得相应奖励')}
+                {t(
+                  '好友单笔充值大于 100 后，系统会记录 15% 展示收益'
+                )}
               </Text>
             </div>
 
             <div className='flex items-start gap-2'>
               <Badge dot type='success' />
               <Text type='tertiary' className='text-sm'>
-                {t('通过划转功能将奖励额度转入到您的账户余额中')}
+                {t('邀请奖励仅用于展示统计，不能划转到余额')}
               </Text>
             </div>
 

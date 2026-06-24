@@ -97,6 +97,7 @@ export function SignUpForm({
       email: '',
       password: '',
       confirmPassword: '',
+      aff_code: getAffiliateCode(),
     },
   })
 
@@ -138,8 +139,9 @@ export function SignUpForm({
     const aff = new URLSearchParams(window.location.search).get('aff')?.trim()
     if (aff) {
       saveAffiliateCode(aff)
+      form.setValue('aff_code', aff)
     }
-  }, [])
+  }, [form])
 
   async function onSubmit(data: z.infer<typeof registerFormSchema>) {
     if (requiresLegalConsent && !agreedToLegal) {
@@ -163,12 +165,16 @@ export function SignUpForm({
 
     setIsLoading(true)
     try {
+      const affCode = data.aff_code?.trim() || getAffiliateCode()
+      if (affCode) {
+        saveAffiliateCode(affCode)
+      }
       const res = await register({
         username: data.username,
         password: data.password,
         email: data.email || undefined,
         verification_code: verificationCode || undefined,
-        aff_code: getAffiliateCode(),
+        aff_code: affCode || undefined,
         turnstile: turnstileToken,
       })
 
@@ -278,6 +284,21 @@ export function SignUpForm({
               <FormLabel>{t('Confirm password')}</FormLabel>
               <FormControl>
                 <PasswordInput placeholder={t('Confirm password')} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Invite Code Field */}
+        <FormField
+          control={form.control}
+          name='aff_code'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('Invite Code')}</FormLabel>
+              <FormControl>
+                <Input placeholder={t('Optional invite code')} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

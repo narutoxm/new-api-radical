@@ -80,6 +80,7 @@ const RegisterForm = () => {
     email: '',
     verification_code: '',
     wechat_verification_code: '',
+    aff_code: localStorage.getItem('aff') || '',
   });
   const { username, password, password2 } = inputs;
   const [userState, userDispatch] = useContext(UserContext);
@@ -118,6 +119,16 @@ const RegisterForm = () => {
   if (affCode) {
     localStorage.setItem('aff', affCode);
   }
+
+  useEffect(() => {
+    const savedAffCode =
+      new URLSearchParams(window.location.search).get('aff') ||
+      localStorage.getItem('aff') ||
+      '';
+    if (savedAffCode) {
+      setInputs((inputs) => ({ ...inputs, aff_code: savedAffCode }));
+    }
+  }, []);
 
   const status = useMemo(() => {
     if (statusState?.status) return statusState.status;
@@ -231,10 +242,14 @@ const RegisterForm = () => {
       }
       setRegisterLoading(true);
       try {
-        if (!affCode) {
-          affCode = localStorage.getItem('aff');
+        let inviteCode = inputs.aff_code || affCode;
+        if (!inviteCode) {
+          inviteCode = localStorage.getItem('aff');
         }
-        inputs.aff_code = affCode;
+        if (inviteCode) {
+          localStorage.setItem('aff', inviteCode);
+        }
+        inputs.aff_code = inviteCode;
         const res = await API.post(
           `/api/user/register?turnstile=${turnstileToken}`,
           inputs,
@@ -600,6 +615,16 @@ const RegisterForm = () => {
                   mode='password'
                   onChange={(value) => handleChange('password2', value)}
                   prefix={<IconLock />}
+                />
+
+                <Form.Input
+                  field='aff_code'
+                  label={t('邀请码')}
+                  placeholder={t('可选邀请码')}
+                  name='aff_code'
+                  value={inputs.aff_code}
+                  onChange={(value) => handleChange('aff_code', value)}
+                  prefix={<IconKey />}
                 />
 
                 {showEmailVerification && (

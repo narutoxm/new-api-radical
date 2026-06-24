@@ -142,13 +142,13 @@ const UserInfoModal = ({
             </div>
           )}
 
-          {/* 邀请获得额度 */}
-          {userInfoData.aff_quota !== undefined &&
-            userInfoData.aff_quota > 0 && (
+          {/* 邀请展示收益 */}
+          {userInfoData.aff_history_quota !== undefined &&
+            userInfoData.aff_history_quota > 0 && (
               <div style={infoItemStyle}>
-                {renderLabel(t('邀请获得额度'), 'success')}
+                {renderLabel(t('展示收益'), 'success')}
                 <div style={valueStyle}>
-                  {renderQuota(userInfoData.aff_quota)}
+                  {renderQuota(userInfoData.aff_history_quota)}
                 </div>
               </div>
             )}

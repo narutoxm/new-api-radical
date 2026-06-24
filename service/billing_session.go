@@ -47,6 +47,7 @@ func (s *BillingSession) Settle(actualQuota int) error {
 	delta := actualQuota - s.preConsumedQuota
 	if delta == 0 {
 		s.settled = true
+		s.accrueWalletAffiliateConsumption()
 		return nil
 	}
 	// 1) 调整资金来源（仅在尚未提交时执行，防止重复调用）
@@ -75,7 +76,17 @@ func (s *BillingSession) Settle(actualQuota int) error {
 		s.relayInfo.SubscriptionPostDelta += int64(delta)
 	}
 	s.settled = true
+	s.accrueWalletAffiliateConsumption()
 	return tokenErr
+}
+
+func (s *BillingSession) accrueWalletAffiliateConsumption() {
+	if s.relayInfo.ForcePreConsume {
+		return
+	}
+	if wallet, ok := s.funding.(*WalletFunding); ok && wallet.consumed > 0 {
+		model.AccrueAffiliateTopUpConsumption(wallet.userId, wallet.consumed)
+	}
 }
 
 // Refund 退还所有预扣费，幂等安全，异步执行。

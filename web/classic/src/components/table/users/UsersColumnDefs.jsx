@@ -184,6 +184,9 @@ const renderInviteInfo = (text, record, t) => {
   return (
     <div>
       <Space spacing={1}>
+        <Tag color={record.aff_enabled ? 'green' : 'grey'} shape='circle' className='!text-xs'>
+          {record.aff_enabled ? t('邀请码已启用') : t('邀请码未启用')}
+        </Tag>
         <Tag color='white' shape='circle' className='!text-xs'>
           {t('邀请')}: {renderNumber(record.aff_count)}
         </Tag>

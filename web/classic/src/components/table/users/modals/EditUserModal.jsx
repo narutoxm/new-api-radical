@@ -47,6 +47,7 @@ import {
   InputNumber,
   RadioGroup,
   Radio,
+  Checkbox,
 } from '@douyinfe/semi-ui';
 import {
   IconUser,
@@ -94,6 +95,7 @@ const EditUserModal = (props) => {
     quota_amount: 0,
     group: 'default',
     remark: '',
+    aff_enabled: false,
   });
 
   const fetchGroups = async () => {
@@ -389,6 +391,23 @@ const EditUserModal = (props) => {
                             {t('调整额度')}
                           </Button>
                         </Form.Slot>
+                      </Col>
+
+                      <Col span={24}>
+                        <Checkbox
+                          checked={values.aff_enabled || false}
+                          onChange={(e) =>
+                            formApiRef.current?.setValue(
+                              'aff_enabled',
+                              e.target.checked,
+                            )
+                          }
+                        >
+                          {t('启用邀请码')}
+                        </Checkbox>
+                        <div className='text-xs text-gray-600 mt-1'>
+                          {t('允许该用户的邀请码在注册时生效')}
+                        </div>
                       </Col>
 
                       <Col span={24}>

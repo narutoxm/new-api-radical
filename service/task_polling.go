@@ -226,6 +226,7 @@ func updateSunoTasks(ctx context.Context, channelId int, taskIds []string, taskM
 			continue
 		}
 
+		oldStatus := task.Status
 		task.Status = lo.If(model.TaskStatus(responseItem.Status) != "", model.TaskStatus(responseItem.Status)).Else(task.Status)
 		task.FailReason = lo.If(responseItem.FailReason != "", responseItem.FailReason).Else(task.FailReason)
 		task.SubmitTime = lo.If(responseItem.SubmitTime != 0, responseItem.SubmitTime).Else(task.SubmitTime)
@@ -244,6 +245,10 @@ func updateSunoTasks(ctx context.Context, channelId int, taskIds []string, taskM
 		err = task.Update()
 		if err != nil {
 			common.SysLog("UpdateSunoTask task error: " + err.Error())
+			continue
+		}
+		if task.Status == model.TaskStatusSuccess && oldStatus != model.TaskStatusSuccess {
+			ConfirmTaskAffiliateConsumption(task)
 		}
 	}
 	return nil
@@ -544,17 +549,23 @@ func settleTaskBillingOnComplete(ctx context.Context, adaptor TaskPollingAdaptor
 	// 0. 按次计费的任务不做差额结算
 	if bc := task.PrivateData.BillingContext; bc != nil && bc.PerCallBilling {
 		logger.LogInfo(ctx, fmt.Sprintf("任务 %s 按次计费，跳过差额结算", task.TaskID))
+		ConfirmTaskAffiliateConsumption(task)
 		return
 	}
 	// 1. 优先让 adaptor 决定最终额度
 	if actualQuota := adaptor.AdjustBillingOnComplete(task, taskResult); actualQuota > 0 {
-		RecalculateTaskQuota(ctx, task, actualQuota, "adaptor计费调整")
+		if RecalculateTaskQuota(ctx, task, actualQuota, "adaptor计费调整") {
+			ConfirmTaskAffiliateConsumption(task)
+		}
 		return
 	}
 	// 2. 回退到 token 重算
 	if taskResult.TotalTokens > 0 {
-		RecalculateTaskQuotaByTokens(ctx, task, taskResult.TotalTokens)
+		if RecalculateTaskQuotaByTokens(ctx, task, taskResult.TotalTokens) {
+			ConfirmTaskAffiliateConsumption(task)
+		}
 		return
 	}
 	// 3. 无调整，保持预扣额度
+	ConfirmTaskAffiliateConsumption(task)
 }

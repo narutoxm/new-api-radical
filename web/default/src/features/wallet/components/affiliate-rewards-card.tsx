@@ -18,8 +18,8 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { Share2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { cn } from '@/lib/utils'
 import { formatQuota } from '@/lib/format'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -29,14 +29,12 @@ import type { UserWalletData } from '../types'
 interface AffiliateRewardsCardProps {
   user: UserWalletData | null
   affiliateLink: string
-  onTransfer: () => void
   loading?: boolean
 }
 
 export function AffiliateRewardsCard({
   user,
   affiliateLink,
-  onTransfer,
   loading,
 }: AffiliateRewardsCardProps) {
   const { t } = useTranslation()
@@ -55,7 +53,7 @@ export function AffiliateRewardsCard({
     )
   }
 
-  const hasRewards = (user?.aff_quota ?? 0) > 0
+  const hasAffiliateLink = affiliateLink.trim().length > 0
 
   return (
     <Card className='bg-muted/20 py-0'>
@@ -70,7 +68,7 @@ export function AffiliateRewardsCard({
             </h3>
             <p className='text-muted-foreground line-clamp-1 text-xs'>
               {t(
-                'Earn rewards when your referrals add funds. Transfer accumulated rewards to your balance anytime.'
+                'When a referred user tops up more than 100 in one payment, 15% is recorded as display-only referral revenue.'
               )}
             </p>
           </div>
@@ -78,8 +76,8 @@ export function AffiliateRewardsCard({
 
         <div className='grid grid-cols-3 gap-1.5 text-center'>
           {[
-            [t('Pending'), formatQuota(user?.aff_quota ?? 0)],
-            [t('Total Earned'), formatQuota(user?.aff_history_quota ?? 0)],
+            [t('Display Revenue'), formatQuota(user?.aff_history_quota ?? 0)],
+            [t('Balance Credit'), formatQuota(0)],
             [t('Invites'), String(user?.aff_count ?? 0)],
           ].map(([label, value]) => (
             <div key={label}>
@@ -95,26 +93,26 @@ export function AffiliateRewardsCard({
 
         <div className='flex items-center gap-2'>
           <Input
-            value={affiliateLink}
+            value={
+              hasAffiliateLink
+                ? affiliateLink
+                : t('Invite code is not enabled for this account.')
+            }
             readOnly
-            className='border-muted bg-background/70 h-9 min-w-0 flex-1 font-mono text-xs'
+            className={cn(
+              'border-muted bg-background/70 h-9 min-w-0 flex-1 text-xs',
+              hasAffiliateLink ? 'font-mono' : 'text-muted-foreground'
+            )}
           />
-          <CopyButton
-            value={affiliateLink}
-            variant='outline'
-            className='bg-background size-9 shrink-0'
-            iconClassName='size-4'
-            tooltip={t('Copy referral link')}
-            aria-label={t('Copy referral link')}
-          />
-          {hasRewards && (
-            <Button
-              onClick={onTransfer}
-              className='h-9 shrink-0 px-3'
-              size='sm'
-            >
-              {t('Transfer to Balance')}
-            </Button>
+          {hasAffiliateLink && (
+            <CopyButton
+              value={affiliateLink}
+              variant='outline'
+              className='bg-background size-9 shrink-0'
+              iconClassName='size-4'
+              tooltip={t('Copy referral link')}
+              aria-label={t('Copy referral link')}
+            />
           )}
         </div>
       </CardContent>

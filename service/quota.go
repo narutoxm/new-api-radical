@@ -404,6 +404,7 @@ func PreConsumeTokenQuota(relayInfo *relaycommon.RelayInfo, quota int) error {
 }
 
 func PostConsumeQuota(relayInfo *relaycommon.RelayInfo, quota int, preConsumedQuota int, sendEmail bool) (err error) {
+	actualWalletConsumedQuota := 0
 
 	// 1) Consume from wallet quota OR subscription item
 	if relayInfo != nil && relayInfo.BillingSource == BillingSourceSubscription {
@@ -427,6 +428,9 @@ func PostConsumeQuota(relayInfo *relaycommon.RelayInfo, quota int, preConsumedQu
 		if err != nil {
 			return err
 		}
+		if consumed := quota + preConsumedQuota; consumed > 0 {
+			actualWalletConsumedQuota = consumed
+		}
 	}
 
 	if !relayInfo.IsPlayground {
@@ -438,6 +442,10 @@ func PostConsumeQuota(relayInfo *relaycommon.RelayInfo, quota int, preConsumedQu
 		if err != nil {
 			return err
 		}
+	}
+
+	if actualWalletConsumedQuota > 0 && relayInfo != nil && !relayInfo.ForcePreConsume {
+		model.AccrueAffiliateTopUpConsumption(relayInfo.UserId, actualWalletConsumedQuota)
 	}
 
 	if sendEmail {

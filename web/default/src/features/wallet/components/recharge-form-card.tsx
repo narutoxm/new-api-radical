@@ -50,6 +50,9 @@ import type {
 } from '../types'
 import { CreemProductsSection } from './creem-products-section'
 
+const REDEMPTION_CODE_PURCHASE_URL =
+  'https://pay.ldxp.cn/shop/SPRAWLBRIDGE/yq6pwv'
+
 interface RechargeFormCardProps {
   topupInfo: TopupInfo | null
   presetAmounts: PresetAmount[]
@@ -65,7 +68,6 @@ interface RechargeFormCardProps {
   onRedemptionCodeChange: (code: string) => void
   onRedeem: () => void
   redeeming: boolean
-  topupLink?: string
   loading?: boolean
   priceRatio?: number
   usdExchangeRate?: number
@@ -95,7 +97,6 @@ export function RechargeFormCard({
   onRedemptionCodeChange,
   onRedeem,
   redeeming,
-  topupLink,
   loading,
   priceRatio = 1,
   usdExchangeRate = 1,
@@ -475,30 +476,24 @@ export function RechargeFormCard({
               {t('Redeem')}
             </Button>
           </div>
-          {topupLink && (
-            <div className='space-y-1.5 text-xs'>
-              <p className='text-muted-foreground'>
-                {t('Need a redemption code?')}{' '}
+          <div className='text-muted-foreground flex flex-wrap items-center gap-1.5 text-xs'>
+            <span>{t('Need a redemption code?')}</span>
+            <Button
+              variant='link'
+              size='sm'
+              className='h-auto gap-1 p-0 text-xs'
+              render={
                 <a
-                  href={topupLink}
+                  href={REDEMPTION_CODE_PURCHASE_URL}
                   target='_blank'
                   rel='noopener noreferrer'
-                  className='inline-flex items-center gap-1 underline-offset-4 hover:underline'
-                >
-                  {t('Get one here')}
-                  <ExternalLink className='h-3 w-3' />
-                </a>
-              </p>
-              <a
-                href={topupLink}
-                target='_blank'
-                rel='noopener noreferrer'
-                className='text-primary block max-w-full break-all font-mono text-[11px] leading-relaxed underline-offset-4 hover:underline'
-              >
-                {topupLink}
-              </a>
-            </div>
-          )}
+                />
+              }
+            >
+              {t('Buy redemption code')}
+              <ExternalLink className='h-3 w-3' />
+            </Button>
+          </div>
         </div>
       ) : (
         <Alert className='border-t'>

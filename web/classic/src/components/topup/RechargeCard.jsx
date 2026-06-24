@@ -53,6 +53,9 @@ import SubscriptionPlansCard from './SubscriptionPlansCard';
 
 const { Text } = Typography;
 
+const REDEMPTION_CODE_PURCHASE_URL =
+  'https://pay.ldxp.cn/shop/SPRAWLBRIDGE/yq6pwv';
+
 const RechargeCard = ({
   t,
   enableOnlineTopUp,
@@ -81,8 +84,6 @@ const RechargeCard = ({
   setRedemptionCode,
   topUp,
   isSubmitting,
-  topUpLink,
-  openTopUpLink,
   userState,
   renderQuota,
   statusLoading,
@@ -613,19 +614,23 @@ const RechargeCard = ({
               showClear
               style={{ width: '100%' }}
               extraText={
-                topUpLink && (
-                  <Text type='tertiary'>
-                    {t('在找兑换码？')}
-                    <Text
-                      type='secondary'
-                      underline
-                      className='cursor-pointer'
-                      onClick={openTopUpLink}
-                    >
-                      {t('购买兑换码')}
-                    </Text>
+                <Text type='tertiary'>
+                  {t('在找兑换码？')}
+                  <Text
+                    type='secondary'
+                    underline
+                    className='cursor-pointer'
+                    onClick={() =>
+                      window.open(
+                        REDEMPTION_CODE_PURCHASE_URL,
+                        '_blank',
+                        'noopener,noreferrer',
+                      )
+                    }
+                  >
+                    {t('购买兑换码')}
                   </Text>
-                )
+                </Text>
               }
             />
           </Form>

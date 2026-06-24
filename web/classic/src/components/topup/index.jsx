@@ -27,7 +27,6 @@ import {
   renderQuota,
   renderQuotaWithAmount,
   copy,
-  getQuotaPerUnit,
 } from '../../helpers';
 import { Modal, Toast } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
@@ -36,7 +35,6 @@ import { StatusContext } from '../../context/Status';
 
 import RechargeCard from './RechargeCard';
 import InvitationCard from './InvitationCard';
-import TransferModal from './modals/TransferModal';
 import PaymentConfirmModal from './modals/PaymentConfirmModal';
 import TopupHistoryModal from './modals/TopupHistoryModal';
 
@@ -69,7 +67,6 @@ const TopUp = () => {
   const [topUpCount, setTopUpCount] = useState(
     statusState?.status?.min_topup || 1,
   );
-  const [topUpLink, setTopUpLink] = useState('');
   const [enableOnlineTopUp, setEnableOnlineTopUp] = useState(
     statusState?.status?.enable_online_topup || false,
   );
@@ -105,8 +102,6 @@ const TopUp = () => {
 
   // 邀请相关状态
   const [affLink, setAffLink] = useState('');
-  const [openTransfer, setOpenTransfer] = useState(false);
-  const [transferAmount, setTransferAmount] = useState(0);
 
   // 账单Modal状态
   const [openHistory, setOpenHistory] = useState(false);
@@ -198,14 +193,6 @@ const TopUp = () => {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const openTopUpLink = () => {
-    if (!topUpLink) {
-      showError(t('超级管理员未设置充值链接！'));
-      return;
-    }
-    window.open(topUpLink, '_blank');
   };
 
   const preTopUp = async (payment) => {
@@ -679,7 +666,6 @@ const TopUp = () => {
           setWaffoPancakeMinTopUp(data.waffo_pancake_min_topup || 1);
           setMinTopUp(minTopUpValue);
           setTopUpCount(minTopUpValue);
-          setTopUpLink(data.topup_link || '');
           setTopupInfo((prev) => ({
             ...prev,
             enable_redemption: data.enable_redemption !== false,
@@ -729,27 +715,7 @@ const TopUp = () => {
     const res = await API.get('/api/user/aff');
     const { success, message, data } = res.data;
     if (success) {
-      let link = `${window.location.origin}/register?aff=${data}`;
-      setAffLink(link);
-    } else {
-      showError(message);
-    }
-  };
-
-  // 划转邀请额度
-  const transfer = async () => {
-    if (transferAmount < getQuotaPerUnit()) {
-      showError(t('划转金额最低为') + ' ' + renderQuota(getQuotaPerUnit()));
-      return;
-    }
-    const res = await API.post(`/api/user/aff_transfer`, {
-      quota: transferAmount,
-    });
-    const { success, message } = res.data;
-    if (success) {
-      showSuccess(message);
-      setOpenTransfer(false);
-      getUserQuota().then();
+      setAffLink(data ? `${window.location.origin}/register?aff=${data}` : '');
     } else {
       showError(message);
     }
@@ -757,6 +723,7 @@ const TopUp = () => {
 
   // 复制邀请链接
   const handleAffLinkClick = async () => {
+    if (!affLink) return;
     await copy(affLink);
     showSuccess(t('邀请链接已复制到剪切板'));
   };
@@ -773,7 +740,6 @@ const TopUp = () => {
   useEffect(() => {
     // 始终获取最新用户数据，确保余额等统计信息准确
     getUserQuota().then();
-    setTransferAmount(getQuotaPerUnit());
   }, []);
 
   useEffect(() => {
@@ -861,10 +827,6 @@ const TopUp = () => {
     setOpen(false);
   };
 
-  const handleTransferCancel = () => {
-    setOpenTransfer(false);
-  };
-
   const handleOpenHistory = () => {
     setOpenHistory(true);
   };
@@ -904,19 +866,6 @@ const TopUp = () => {
 
   return (
     <div className='w-full max-w-7xl mx-auto relative min-h-screen lg:min-h-0 mt-[60px] px-2'>
-      {/* 划转模态框 */}
-      <TransferModal
-        t={t}
-        openTransfer={openTransfer}
-        transfer={transfer}
-        handleTransferCancel={handleTransferCancel}
-        userState={userState}
-        renderQuota={renderQuota}
-        getQuotaPerUnit={getQuotaPerUnit}
-        transferAmount={transferAmount}
-        setTransferAmount={setTransferAmount}
-      />
-
       {/* 充值确认模态框 */}
       <PaymentConfirmModal
         t={t}
@@ -1001,8 +950,6 @@ const TopUp = () => {
           setRedemptionCode={setRedemptionCode}
           topUp={topUp}
           isSubmitting={isSubmitting}
-          topUpLink={topUpLink}
-          openTopUpLink={openTopUpLink}
           userState={userState}
           renderQuota={renderQuota}
           statusLoading={statusLoading}
@@ -1021,10 +968,8 @@ const TopUp = () => {
           t={t}
           userState={userState}
           renderQuota={renderQuota}
-          setOpenTransfer={setOpenTransfer}
           affLink={affLink}
           handleAffLinkClick={handleAffLinkClick}
-          complianceConfirmed={topupInfo.payment_compliance_confirmed !== false}
         />
       </div>
     </div>
