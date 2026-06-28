@@ -59,13 +59,21 @@ interface PlaygroundMediaProps {
 }
 
 const imageRatios = ['1:1', '16:9', '9:16', '4:3', '3:4'] as const
-const imageQualities = ['auto', 'low', 'medium', 'high'] as const
-const imageSizeByRatio: Record<(typeof imageRatios)[number], string> = {
-  '1:1': '1024x1024',
-  '16:9': '1536x864',
-  '9:16': '864x1536',
-  '4:3': '1344x1008',
-  '3:4': '1008x1344',
+const imageResolutions = ['2K', '4K'] as const
+const imageCounts = ['1', '2', '4'] as const
+const imageRatioDimensions: Record<
+  (typeof imageRatios)[number],
+  { width: number; height: number }
+> = {
+  '1:1': { width: 1, height: 1 },
+  '16:9': { width: 16, height: 9 },
+  '9:16': { width: 9, height: 16 },
+  '4:3': { width: 4, height: 3 },
+  '3:4': { width: 3, height: 4 },
+}
+const imageResolutionBase: Record<(typeof imageResolutions)[number], number> = {
+  '2K': 2048,
+  '4K': 4096,
 }
 const imageModelHints = [
   'sese-image',
@@ -96,6 +104,21 @@ function getPreferredImageModel(models: ModelOption[], modelValue: string) {
   )
 }
 
+function getImageSize(
+  ratio: (typeof imageRatios)[number],
+  resolution: (typeof imageResolutions)[number]
+) {
+  const base = imageResolutionBase[resolution]
+  const dimensions = imageRatioDimensions[ratio]
+  if (dimensions.width === dimensions.height) {
+    return `${base}x${base}`
+  }
+  if (dimensions.width > dimensions.height) {
+    return `${base}x${Math.round((base * dimensions.height) / dimensions.width)}`
+  }
+  return `${Math.round((base * dimensions.width) / dimensions.height)}x${base}`
+}
+
 export function PlaygroundMedia(props: PlaygroundMediaProps) {
   if (props.mode === 'video') {
     return <PlaygroundVideoComingSoon />
@@ -118,8 +141,9 @@ function PlaygroundImage({
   const [imageRatio, setImageRatio] = useState<(typeof imageRatios)[number]>(
     '1:1'
   )
-  const [imageQuality, setImageQuality] =
-    useState<(typeof imageQualities)[number]>('auto')
+  const [imageResolution, setImageResolution] =
+    useState<(typeof imageResolutions)[number]>('2K')
+  const [imageCount, setImageCount] = useState<(typeof imageCounts)[number]>('1')
   const [isGenerating, setIsGenerating] = useState(false)
   const [images, setImages] = useState<ImageGenerationData[]>([])
 
@@ -133,13 +157,14 @@ function PlaygroundImage({
 
     setIsGenerating(true)
     try {
+      const imageSize = getImageSize(imageRatio, imageResolution)
       const response = await sendImageGeneration({
         model: selectedModel,
         group: groupValue,
         prompt: prompt.trim(),
-        n: 1,
-        size: imageSizeByRatio[imageRatio],
-        quality: imageQuality,
+        n: Number(imageCount),
+        size: imageSize,
+        aspect_ratio: imageRatio,
         response_format: 'url',
       })
       setImages(response.data || [])
@@ -211,7 +236,7 @@ function PlaygroundImage({
               />
             </div>
 
-            <div className='grid grid-cols-2 gap-3'>
+            <div className='grid grid-cols-1 gap-3 sm:grid-cols-3'>
               <MediaSelect
                 label={t('Aspect ratio')}
                 options={imageRatios}
@@ -219,11 +244,19 @@ function PlaygroundImage({
                 onValueChange={(value) => setImageRatio(value as typeof imageRatio)}
               />
               <MediaSelect
-                label={t('Quality')}
-                options={imageQualities}
-                value={imageQuality}
+                label={t('Resolution')}
+                options={imageResolutions}
+                value={imageResolution}
                 onValueChange={(value) =>
-                  setImageQuality(value as typeof imageQuality)
+                  setImageResolution(value as typeof imageResolution)
+                }
+              />
+              <MediaSelect
+                label={t('Cards')}
+                options={imageCounts}
+                value={imageCount}
+                onValueChange={(value) =>
+                  setImageCount(value as typeof imageCount)
                 }
               />
             </div>
@@ -245,7 +278,7 @@ function PlaygroundImage({
 
           <div className='min-w-0'>
             {images.length > 0 ? (
-              <div className='grid gap-4 sm:grid-cols-2'>
+              <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-3'>
                 {images.map((image, index) => {
                   const src = image.url
                     ? image.url
@@ -254,17 +287,22 @@ function PlaygroundImage({
                       : ''
                   return (
                     <div
-                      className='overflow-hidden rounded-lg border bg-background'
+                      className='overflow-hidden rounded-lg border bg-background shadow-sm'
                       key={`${src}-${index}`}
                     >
+                      <div className='border-b px-3 py-2 text-xs font-medium text-muted-foreground'>
+                        {t('Card')} {index + 1}
+                      </div>
                       {src ? (
-                        <img
-                          alt={image.revised_prompt || prompt}
-                          className='aspect-square w-full object-cover'
-                          src={src}
-                        />
+                        <div className='flex min-h-[28rem] items-center justify-center bg-muted/20 p-2'>
+                          <img
+                            alt={image.revised_prompt || prompt}
+                            className='max-h-[72vh] w-full object-contain'
+                            src={src}
+                          />
+                        </div>
                       ) : (
-                        <div className='border-border/70 flex aspect-square items-center justify-center border border-dashed'>
+                        <div className='border-border/70 flex min-h-[28rem] items-center justify-center border border-dashed'>
                           <ImageIcon className='text-muted-foreground size-8' />
                         </div>
                       )}
@@ -273,7 +311,7 @@ function PlaygroundImage({
                 })}
               </div>
             ) : (
-              <div className='border-border/70 flex min-h-80 items-center justify-center rounded-lg border border-dashed p-8 text-center'>
+              <div className='border-border/70 flex min-h-[32rem] items-center justify-center rounded-lg border border-dashed p-8 text-center'>
                 <div className='grid gap-2'>
                   <ImageIcon className='text-muted-foreground mx-auto size-8' />
                   <div className='text-sm font-medium'>{t('No images yet')}</div>

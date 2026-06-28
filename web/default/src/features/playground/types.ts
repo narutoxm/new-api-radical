@@ -113,6 +113,7 @@ export interface ImageGenerationRequest {
   n?: number
   size?: string
   quality?: string
+  aspect_ratio?: string
   response_format?: 'url' | 'b64_json'
 }
 

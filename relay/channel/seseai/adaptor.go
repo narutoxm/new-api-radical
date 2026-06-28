@@ -121,13 +121,13 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 func dimensionsFromImageRequest(request dto.ImageRequest) (int, int) {
 	size := strings.TrimSpace(request.Size)
 	if size == "" || strings.EqualFold(size, "auto") || strings.EqualFold(size, "1k") {
-		return 1024, 1024
+		return dimensionsByAspectRatio(request, 1024)
 	}
 	switch strings.ToLower(size) {
 	case "2k":
-		return 2048, 2048
+		return dimensionsByAspectRatio(request, 2048)
 	case "4k":
-		return 4096, 4096
+		return dimensionsByAspectRatio(request, 4096)
 	}
 	parts := strings.Split(size, "x")
 	if len(parts) != 2 {
@@ -139,6 +139,34 @@ func dimensionsFromImageRequest(request dto.ImageRequest) (int, int) {
 		return 1024, 1024
 	}
 	return width, height
+}
+
+func dimensionsByAspectRatio(request dto.ImageRequest, base int) (int, int) {
+	aspectRatio := strings.TrimSpace(stringFromExtra(request.Extra, "aspect_ratio"))
+	switch aspectRatio {
+	case "16:9":
+		return base, base * 9 / 16
+	case "9:16":
+		return base * 9 / 16, base
+	case "4:3":
+		return base, base * 3 / 4
+	case "3:4":
+		return base * 3 / 4, base
+	default:
+		return base, base
+	}
+}
+
+func stringFromExtra(extra map[string]json.RawMessage, key string) string {
+	raw, ok := extra[key]
+	if !ok || raw == nil {
+		return ""
+	}
+	var val string
+	if err := common.Unmarshal(raw, &val); err != nil {
+		return ""
+	}
+	return val
 }
 
 func optionalIntFromExtra(extra map[string]json.RawMessage, key string) *int {
