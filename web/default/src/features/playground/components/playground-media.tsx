@@ -24,7 +24,6 @@ import {
   SparklesIcon,
   Trash2Icon,
   VideoIcon,
-  ZoomInIcon,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -129,10 +128,6 @@ function downloadImage(src: string, index: number) {
   document.body.appendChild(link)
   link.click()
   link.remove()
-}
-
-function openImage(src: string) {
-  window.open(src, '_blank', 'noopener,noreferrer')
 }
 
 export function PlaygroundMedia(props: PlaygroundMediaProps) {
@@ -319,14 +314,6 @@ function PlaygroundImage({
                         </div>
                         {src && (
                           <div className='flex items-center gap-1.5'>
-                            <Button
-                              onClick={() => openImage(src)}
-                              size='sm'
-                              variant='ghost'
-                            >
-                              <ZoomInIcon data-icon='inline-start' />
-                              {t('View')}
-                            </Button>
                             <Button
                               onClick={() => downloadImage(src, index)}
                               size='sm'
