@@ -68,6 +68,7 @@ const imageSizeByRatio: Record<(typeof imageRatios)[number], string> = {
   '3:4': '1008x1344',
 }
 const imageModelHints = [
+  'sese-image',
   'image',
   'imagen',
   'dall',
@@ -82,6 +83,17 @@ function getImageModels(models: ModelOption[]) {
     const name = model.value.toLowerCase()
     return imageModelHints.some((hint) => name.includes(hint))
   })
+}
+
+function getPreferredImageModel(models: ModelOption[], modelValue: string) {
+  if (models.some((model) => model.value === modelValue)) {
+    return modelValue
+  }
+  return (
+    models.find((model) => model.value === 'sese-image')?.value ||
+    models[0]?.value ||
+    ''
+  )
 }
 
 export function PlaygroundMedia(props: PlaygroundMediaProps) {
@@ -112,9 +124,7 @@ function PlaygroundImage({
   const [images, setImages] = useState<ImageGenerationData[]>([])
 
   const imageModels = useMemo(() => getImageModels(models), [models])
-  const selectedModel = imageModels.some((model) => model.value === modelValue)
-    ? modelValue
-    : imageModels[0]?.value || ''
+  const selectedModel = getPreferredImageModel(imageModels, modelValue)
   const hasModels = imageModels.length > 0
   const isSubmitDisabled = !hasModels || !prompt.trim() || isGenerating
 
