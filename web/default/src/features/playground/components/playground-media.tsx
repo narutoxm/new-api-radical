@@ -18,11 +18,13 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useMemo, useState } from 'react'
 import {
+  DownloadIcon,
   ImageIcon,
   SendIcon,
   SparklesIcon,
   Trash2Icon,
   VideoIcon,
+  ZoomInIcon,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -38,6 +40,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { GroupSelector, ModelSelector } from '@/components/model-group-selector'
+import { cn } from '@/lib/utils'
 import { sendImageGeneration } from '../api'
 import type {
   GroupOption,
@@ -117,6 +120,19 @@ function getImageSize(
     return `${base}x${Math.round((base * dimensions.height) / dimensions.width)}`
   }
   return `${Math.round((base * dimensions.width) / dimensions.height)}x${base}`
+}
+
+function downloadImage(src: string, index: number) {
+  const link = document.createElement('a')
+  link.href = src
+  link.download = `playground-image-${index + 1}.png`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+}
+
+function openImage(src: string) {
+  window.open(src, '_blank', 'noopener,noreferrer')
 }
 
 export function PlaygroundMedia(props: PlaygroundMediaProps) {
@@ -278,7 +294,14 @@ function PlaygroundImage({
 
           <div className='min-w-0'>
             {images.length > 0 ? (
-              <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-3'>
+              <div
+                className={cn(
+                  'grid gap-4',
+                  images.length === 1
+                    ? 'grid-cols-1'
+                    : 'sm:grid-cols-2 xl:grid-cols-3'
+                )}
+              >
                 {images.map((image, index) => {
                   const src = image.url
                     ? image.url
@@ -290,19 +313,41 @@ function PlaygroundImage({
                       className='overflow-hidden rounded-lg border bg-background shadow-sm'
                       key={`${src}-${index}`}
                     >
-                      <div className='border-b px-3 py-2 text-xs font-medium text-muted-foreground'>
-                        {t('Card')} {index + 1}
+                      <div className='flex items-center justify-between gap-3 border-b px-3 py-2'>
+                        <div className='text-xs font-medium text-muted-foreground'>
+                          {t('Card')} {index + 1}
+                        </div>
+                        {src && (
+                          <div className='flex items-center gap-1.5'>
+                            <Button
+                              onClick={() => openImage(src)}
+                              size='sm'
+                              variant='ghost'
+                            >
+                              <ZoomInIcon data-icon='inline-start' />
+                              {t('View')}
+                            </Button>
+                            <Button
+                              onClick={() => downloadImage(src, index)}
+                              size='sm'
+                              variant='ghost'
+                            >
+                              <DownloadIcon data-icon='inline-start' />
+                              {t('Download')}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                       {src ? (
-                        <div className='flex min-h-[28rem] items-center justify-center bg-muted/20 p-2'>
+                        <div className='flex min-h-[34rem] items-center justify-center bg-muted/20 p-2'>
                           <img
                             alt={image.revised_prompt || prompt}
-                            className='max-h-[72vh] w-full object-contain'
+                            className='max-h-[78vh] w-full object-contain'
                             src={src}
                           />
                         </div>
                       ) : (
-                        <div className='border-border/70 flex min-h-[28rem] items-center justify-center border border-dashed'>
+                        <div className='border-border/70 flex min-h-[34rem] items-center justify-center border border-dashed'>
                           <ImageIcon className='text-muted-foreground size-8' />
                         </div>
                       )}
