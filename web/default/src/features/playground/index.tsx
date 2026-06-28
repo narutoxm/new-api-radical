@@ -18,11 +18,19 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useCallback, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { ImageIcon, MessageSquareIcon, VideoIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs'
 import { getUserModels, getUserGroups } from './api'
 import { PlaygroundChat } from './components/playground-chat'
 import { PlaygroundInput } from './components/playground-input'
+import { PlaygroundMedia } from './components/playground-media'
 import { usePlaygroundState, useChatHandler } from './hooks'
 import { createUserMessage, createLoadingAssistantMessage } from './lib'
 import type { Message as MessageType } from './types'
@@ -189,39 +197,91 @@ export function Playground() {
   }
 
   return (
-    <div className='relative flex size-full flex-col overflow-hidden'>
-      {/* Full-width scroll container: scrolling works even over side whitespace */}
-      <div className='flex flex-1 flex-col overflow-hidden'>
-        <PlaygroundChat
-          messages={messages}
-          onCopyMessage={handleCopyMessage}
-          onRegenerateMessage={handleRegenerateMessage}
-          onEditMessage={handleEditMessage}
-          onDeleteMessage={handleDeleteMessage}
-          isGenerating={isGenerating}
-          editingKey={editingMessageKey}
-          onCancelEdit={handleEditOpenChange}
-          onSaveEdit={(newContent) => applyEdit(newContent, false)}
-          onSaveEditAndSubmit={(newContent) => applyEdit(newContent, true)}
-        />
+    <Tabs
+      defaultValue='chat'
+      className='relative flex size-full min-h-0 flex-col gap-0 overflow-hidden'
+    >
+      <div className='border-b px-4 py-2 md:px-6'>
+        <div className='mx-auto flex w-full max-w-6xl items-center justify-between gap-3'>
+          <TabsList className='grid w-fit grid-cols-3'>
+            <TabsTrigger className='px-3' value='chat'>
+              <MessageSquareIcon className='size-3.5' />
+              {t('Chat')}
+            </TabsTrigger>
+            <TabsTrigger className='px-3' value='image'>
+              <ImageIcon className='size-3.5' />
+              {t('Image')}
+            </TabsTrigger>
+            <TabsTrigger className='px-3' value='video'>
+              <VideoIcon className='size-3.5' />
+              {t('Video')}
+            </TabsTrigger>
+          </TabsList>
+        </div>
       </div>
 
-      {/* Input area: center content and constrain to the same container width */}
-      <div className='mx-auto w-full max-w-4xl'>
-        <PlaygroundInput
-          disabled={isGenerating}
+      <TabsContent className='flex min-h-0 flex-1 flex-col' value='chat'>
+        <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
+          {/* Full-width scroll container: scrolling works even over side whitespace */}
+          <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
+            <PlaygroundChat
+              messages={messages}
+              onCopyMessage={handleCopyMessage}
+              onRegenerateMessage={handleRegenerateMessage}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
+              isGenerating={isGenerating}
+              editingKey={editingMessageKey}
+              onCancelEdit={handleEditOpenChange}
+              onSaveEdit={(newContent) => applyEdit(newContent, false)}
+              onSaveEditAndSubmit={(newContent) => applyEdit(newContent, true)}
+            />
+          </div>
+
+          {/* Input area: center content and constrain to the same container width */}
+          <div className='mx-auto w-full max-w-4xl'>
+            <PlaygroundInput
+              disabled={isGenerating}
+              groups={groups}
+              groupValue={config.group}
+              isGenerating={isGenerating}
+              isModelLoading={isLoadingModels}
+              modelValue={config.model}
+              models={models}
+              onGroupChange={(value) => updateConfig('group', value)}
+              onModelChange={(value) => updateConfig('model', value)}
+              onStop={stopGeneration}
+              onSubmit={handleSendMessage}
+            />
+          </div>
+        </div>
+      </TabsContent>
+
+      <TabsContent className='flex min-h-0 flex-1 flex-col' value='image'>
+        <PlaygroundMedia
+          mode='image'
           groups={groups}
           groupValue={config.group}
-          isGenerating={isGenerating}
           isModelLoading={isLoadingModels}
           modelValue={config.model}
           models={models}
           onGroupChange={(value) => updateConfig('group', value)}
           onModelChange={(value) => updateConfig('model', value)}
-          onStop={stopGeneration}
-          onSubmit={handleSendMessage}
         />
-      </div>
-    </div>
+      </TabsContent>
+
+      <TabsContent className='flex min-h-0 flex-1 flex-col' value='video'>
+        <PlaygroundMedia
+          mode='video'
+          groups={groups}
+          groupValue={config.group}
+          isModelLoading={isLoadingModels}
+          modelValue={config.model}
+          models={models}
+          onGroupChange={(value) => updateConfig('group', value)}
+          onModelChange={(value) => updateConfig('model', value)}
+        />
+      </TabsContent>
+    </Tabs>
   )
 }

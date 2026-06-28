@@ -106,6 +106,27 @@ export interface ChatCompletionResponse {
   }
 }
 
+export interface ImageGenerationRequest {
+  model: string
+  group?: string
+  prompt: string
+  n?: number
+  size?: string
+  quality?: string
+  response_format?: 'url' | 'b64_json'
+}
+
+export interface ImageGenerationResponse {
+  created: number
+  data: ImageGenerationData[]
+}
+
+export interface ImageGenerationData {
+  url?: string
+  b64_json?: string
+  revised_prompt?: string
+}
+
 // Configuration types
 export interface PlaygroundConfig {
   model: string
