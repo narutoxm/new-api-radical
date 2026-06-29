@@ -19,8 +19,11 @@ For commercial licensing, please contact support@quantumnous.com
 import { AxiosError } from 'axios'
 import i18next from 'i18next'
 import { toast } from 'sonner'
+import { isTransientNetworkError } from './api'
 
 export function handleServerError(error: unknown) {
+  if (isTransientNetworkError(error)) return
+
   // eslint-disable-next-line no-console
   console.log(error)
 

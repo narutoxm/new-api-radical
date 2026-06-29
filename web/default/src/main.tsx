@@ -28,7 +28,7 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import i18next from 'i18next'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
-import { getStatus } from '@/lib/api'
+import { getStatus, isTransientNetworkError } from '@/lib/api'
 import { installBuildMetadata } from '@/lib/build-metadata'
 import '@/lib/dayjs'
 import { applyFaviconToDom } from '@/lib/dom-utils'
@@ -48,6 +48,31 @@ import './styles/index.css'
 initializeFrontendCache()
 installBuildMetadata()
 
+function isChunkLoadError(reason: unknown) {
+  const message =
+    reason instanceof Error
+      ? reason.message
+      : typeof reason === 'string'
+        ? reason
+        : String((reason as { message?: unknown } | null)?.message || '')
+  return /ChunkLoadError|Loading chunk [\d\w-]+ failed|Failed to fetch dynamically imported module|Importing a module script failed/i.test(
+    message
+  )
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (event) => {
+    if (!isChunkLoadError(event.reason)) return
+    const reloadKey = 'chunk_load_error_reloaded'
+    if (sessionStorage.getItem(reloadKey) === '1') return
+    sessionStorage.setItem(reloadKey, '1')
+    window.location.reload()
+  })
+  window.addEventListener('load', () => {
+    sessionStorage.removeItem('chunk_load_error_reloaded')
+  })
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -55,6 +80,7 @@ const queryClient = new QueryClient({
         // eslint-disable-next-line no-console
         if (import.meta.env.DEV) console.log({ failureCount, error })
 
+        if (isTransientNetworkError(error)) return false
         if (failureCount >= 0 && import.meta.env.DEV) return false
         if (failureCount > 3 && import.meta.env.PROD) return false
 
@@ -63,7 +89,8 @@ const queryClient = new QueryClient({
           [401, 403].includes(error.response?.status ?? 0)
         )
       },
-      refetchOnWindowFocus: import.meta.env.PROD,
+      refetchOnWindowFocus: () =>
+        import.meta.env.PROD && navigator.onLine,
       staleTime: 10 * 1000, // 10s
     },
     mutations: {
@@ -81,6 +108,7 @@ const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error) => {
       if (error instanceof AxiosError) {
+        if (isTransientNetworkError(error)) return
         if (error.response?.status === 401) {
           toast.error(i18next.t('Session expired!'))
           useAuthStore.getState().auth.reset()

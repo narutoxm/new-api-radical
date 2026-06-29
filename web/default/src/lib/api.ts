@@ -31,6 +31,21 @@ declare module 'axios' {
 
 export type ApiRequestConfig = AxiosRequestConfig
 
+export function isTransientNetworkError(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false
+  if (error.response) return false
+
+  const code = String(error.code || '')
+  const message = String(error.message || '').toLowerCase()
+  return (
+    code === 'ERR_NETWORK' ||
+    code === 'ECONNABORTED' ||
+    message.includes('network') ||
+    message.includes('internet disconnected') ||
+    message.includes('name not resolved')
+  )
+}
+
 // ============================================================================
 // Axios Instance Configuration
 // ============================================================================
@@ -99,6 +114,10 @@ api.interceptors.response.use(
   (error) => {
     const skip = error?.config?.skipErrorHandler
     const status = error?.response?.status
+
+    if (isTransientNetworkError(error)) {
+      return Promise.reject(error)
+    }
 
     if (status === 401) {
       try {
