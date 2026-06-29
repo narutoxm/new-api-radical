@@ -63,9 +63,22 @@ function getServerAddress() {
   return window.location.origin;
 }
 
+function getCCSwitchEndpoint(serverAddress) {
+  try {
+    const parsed = new URL(serverAddress);
+    if (parsed.hostname === 'dogchat.cc.cd') {
+      parsed.hostname = 'api.dogchat.cc.cd';
+      parsed.pathname = parsed.pathname.replace(/\/+$/, '');
+      return parsed.toString().replace(/\/$/, '');
+    }
+  } catch (_) {}
+  return serverAddress;
+}
+
 function buildCCSwitchURL(app, name, models, apiKey) {
   const serverAddress = getServerAddress();
-  const endpoint = app === 'codex' ? serverAddress + '/v1' : serverAddress;
+  const ccSwitchEndpoint = getCCSwitchEndpoint(serverAddress);
+  const endpoint = app === 'codex' ? ccSwitchEndpoint + '/v1' : ccSwitchEndpoint;
   const params = new URLSearchParams();
   params.set('resource', 'provider');
   params.set('app', app);
@@ -75,7 +88,7 @@ function buildCCSwitchURL(app, name, models, apiKey) {
   for (const [k, v] of Object.entries(models)) {
     if (v) params.set(k, v);
   }
-  params.set('homepage', serverAddress);
+  params.set('homepage', ccSwitchEndpoint);
   params.set('enabled', 'true');
   return `ccswitch://v1/import?${params.toString()}`;
 }
