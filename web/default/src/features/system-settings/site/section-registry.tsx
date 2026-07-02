@@ -28,6 +28,7 @@ import { NoticeSection } from '../maintenance/notice-section'
 import { SidebarModulesSection } from '../maintenance/sidebar-modules-section'
 import type { SiteSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { AffiliateSitesSection } from './affiliate-sites/affiliate-sites-section'
 
 const SITE_SECTIONS = [
   {
@@ -89,6 +90,11 @@ const SITE_SECTIONS = [
         />
       )
     },
+  },
+  {
+    id: 'affiliate-sites',
+    titleKey: 'Affiliate Sites',
+    build: () => <AffiliateSitesSection />,
   },
 ] as const
 

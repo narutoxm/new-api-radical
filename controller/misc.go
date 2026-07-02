@@ -41,6 +41,7 @@ func TestStatus(c *gin.Context) {
 
 func GetStatus(c *gin.Context) {
 
+	isAffiliateSite := isAffiliateSiteRequest(c)
 	cs := console_setting.GetConsoleSetting()
 	common.OptionMapRWMutex.RLock()
 	defer common.OptionMapRWMutex.RUnlock()
@@ -91,6 +92,7 @@ func GetStatus(c *gin.Context) {
 		"password_login_enabled":        common.PasswordLoginEnabled,
 		"password_register_enabled":     common.PasswordRegisterEnabled,
 		"default_use_auto_group":        setting.DefaultUseAutoGroup,
+		"affiliate_site":                isAffiliateSite,
 
 		"usd_exchange_rate": operation_setting.USDExchangeRate,
 		"price":             operation_setting.Price,
@@ -122,6 +124,23 @@ func GetStatus(c *gin.Context) {
 		"checkin_enabled":             operation_setting.GetCheckinSetting().Enabled,
 	}
 
+	if isAffiliateSite {
+		data["github_oauth"] = false
+		data["github_client_id"] = ""
+		data["discord_oauth"] = false
+		data["discord_client_id"] = ""
+		data["linuxdo_oauth"] = false
+		data["linuxdo_client_id"] = ""
+		data["telegram_oauth"] = false
+		data["telegram_bot_name"] = ""
+		data["oidc_enabled"] = false
+		data["oidc_client_id"] = ""
+		data["oidc_authorization_endpoint"] = ""
+		data["wechat_login"] = false
+		data["passkey_login"] = false
+		data["custom_oauth_providers"] = []gin.H{}
+	}
+
 	// 根据启用状态注入可选内容
 	if cs.ApiInfoEnabled {
 		data["api_info"] = console_setting.GetApiInfo()
@@ -134,31 +153,33 @@ func GetStatus(c *gin.Context) {
 	}
 
 	// Add enabled custom OAuth providers
-	customProviders := oauth.GetEnabledCustomProviders()
-	if len(customProviders) > 0 {
-		type CustomOAuthInfo struct {
-			Id                    int    `json:"id"`
-			Name                  string `json:"name"`
-			Slug                  string `json:"slug"`
-			Icon                  string `json:"icon"`
-			ClientId              string `json:"client_id"`
-			AuthorizationEndpoint string `json:"authorization_endpoint"`
-			Scopes                string `json:"scopes"`
+	if !isAffiliateSite {
+		customProviders := oauth.GetEnabledCustomProviders()
+		if len(customProviders) > 0 {
+			type CustomOAuthInfo struct {
+				Id                    int    `json:"id"`
+				Name                  string `json:"name"`
+				Slug                  string `json:"slug"`
+				Icon                  string `json:"icon"`
+				ClientId              string `json:"client_id"`
+				AuthorizationEndpoint string `json:"authorization_endpoint"`
+				Scopes                string `json:"scopes"`
+			}
+			providersInfo := make([]CustomOAuthInfo, 0, len(customProviders))
+			for _, p := range customProviders {
+				config := p.GetConfig()
+				providersInfo = append(providersInfo, CustomOAuthInfo{
+					Id:                    config.Id,
+					Name:                  config.Name,
+					Slug:                  config.Slug,
+					Icon:                  config.Icon,
+					ClientId:              config.ClientId,
+					AuthorizationEndpoint: config.AuthorizationEndpoint,
+					Scopes:                config.Scopes,
+				})
+			}
+			data["custom_oauth_providers"] = providersInfo
 		}
-		providersInfo := make([]CustomOAuthInfo, 0, len(customProviders))
-		for _, p := range customProviders {
-			config := p.GetConfig()
-			providersInfo = append(providersInfo, CustomOAuthInfo{
-				Id:                    config.Id,
-				Name:                  config.Name,
-				Slug:                  config.Slug,
-				Icon:                  config.Icon,
-				ClientId:              config.ClientId,
-				AuthorizationEndpoint: config.AuthorizationEndpoint,
-				Scopes:                config.Scopes,
-			})
-		}
-		data["custom_oauth_providers"] = providersInfo
 	}
 
 	c.JSON(http.StatusOK, gin.H{

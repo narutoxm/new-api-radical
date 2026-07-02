@@ -30,6 +30,7 @@ import {
   Settings,
   Ticket,
   User,
+  UserPlus,
   Users,
   Wallet,
 } from 'lucide-react'
@@ -104,6 +105,11 @@ export function useSidebarData(): SidebarData {
             title: t('Wallet'),
             url: '/wallet',
             icon: Wallet,
+          },
+          {
+            title: t('My Referrals'),
+            url: '/affiliate',
+            icon: UserPlus,
           },
           {
             title: t('Profile'),

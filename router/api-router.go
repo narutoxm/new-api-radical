@@ -92,6 +92,7 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.POST("/passkey/verify/finish", controller.PasskeyVerifyFinish)
 				selfRoute.DELETE("/passkey", controller.PasskeyDelete)
 				selfRoute.GET("/aff", controller.GetAffCode)
+				selfRoute.GET("/affiliate/overview", controller.GetAffiliateOverview)
 				selfRoute.GET("/topup/info", controller.GetTopUpInfo)
 				selfRoute.GET("/topup/self", controller.GetUserTopUps)
 				selfRoute.POST("/topup", middleware.CriticalRateLimit(), controller.TopUp)
@@ -301,6 +302,14 @@ func SetApiRouter(router *gin.Engine) {
 			redemptionRoute.PUT("/", controller.UpdateRedemption)
 			redemptionRoute.DELETE("/invalid", controller.DeleteInvalidRedemption)
 			redemptionRoute.DELETE("/:id", controller.DeleteRedemption)
+		}
+		affiliateSiteRoute := apiRouter.Group("/affiliate-sites")
+		affiliateSiteRoute.Use(middleware.RootAuth())
+		{
+			affiliateSiteRoute.GET("/", controller.GetAffiliateSites)
+			affiliateSiteRoute.POST("/", controller.CreateAffiliateSite)
+			affiliateSiteRoute.PUT("/", controller.UpdateAffiliateSite)
+			affiliateSiteRoute.DELETE("/:id", controller.DeleteAffiliateSite)
 		}
 		logRoute := apiRouter.Group("/log")
 		logRoute.GET("/", middleware.AdminAuth(), controller.GetAllLogs)

@@ -227,11 +227,11 @@ func LinuxdoOAuth(c *gin.Context) {
 				user.Role = common.RoleCommonUser
 				user.Status = common.UserStatusEnabled
 
-				affCode := session.Get("aff")
-				inviterId := 0
-				if affCode != nil {
-					inviterId, _ = model.GetUserIdByAffCode(affCode.(string))
+				affCode := ""
+				if sessionAffCode := session.Get("aff"); sessionAffCode != nil {
+					affCode, _ = sessionAffCode.(string)
 				}
+				inviterId := resolveRegistrationInviterId(c, affCode)
 
 				if err := user.Insert(inviterId); err != nil {
 					c.JSON(http.StatusOK, gin.H{
