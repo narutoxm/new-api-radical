@@ -237,6 +237,8 @@ export type TierCondition = {
 export type ParsedTier = {
   label: string
   conditions: TierCondition[]
+  requestUnitPrice?: number
+  requestUnitLabel?: string
   [field: string]: unknown
 }
 
@@ -265,37 +267,111 @@ function parseTierBody(bodyStr: string): Record<string, number> {
   return tier
 }
 
+function parseRequestUnitTierBody(bodyStr: string): {
+  requestUnitPrice: number
+  requestUnitLabel: string
+} | null {
+  const imageCountPattern =
+    /\(\s*param\("n"\)\s*==\s*nil\s*\?\s*1\s*:\s*param\("n"\)\s*\)\s*\*\s*([\d.eE+-]+)\s*\*\s*1000000/
+  const match = bodyStr.match(imageCountPattern)
+  if (!match) return null
+  const price = Number(match[1])
+  if (!Number.isFinite(price) || price <= 0) return null
+  return {
+    requestUnitPrice: price,
+    requestUnitLabel: 'Image',
+  }
+}
+
+function findTierCalls(body: string): Array<{
+  label: string
+  body: string
+  prefix: string
+}> {
+  const calls: Array<{ label: string; body: string; prefix: string }> = []
+  const tierStartRe = /tier\("([^"]*)",\s*/g
+  let match: RegExpExecArray | null
+
+  while ((match = tierStartRe.exec(body)) !== null) {
+    const argsStart = tierStartRe.lastIndex
+    let depth = 0
+    let inString = false
+    let escaped = false
+    let end = -1
+
+    for (let i = argsStart; i < body.length; i += 1) {
+      const char = body[i]
+      if (inString) {
+        if (escaped) {
+          escaped = false
+        } else if (char === '\\') {
+          escaped = true
+        } else if (char === '"') {
+          inString = false
+        }
+        continue
+      }
+      if (char === '"') {
+        inString = true
+        continue
+      }
+      if (char === '(') {
+        depth += 1
+        continue
+      }
+      if (char === ')') {
+        if (depth === 0) {
+          end = i
+          break
+        }
+        depth -= 1
+      }
+    }
+
+    if (end === -1) break
+    calls.push({
+      label: match[1],
+      body: body.slice(argsStart, end).trim(),
+      prefix: body.slice(0, match.index),
+    })
+    tierStartRe.lastIndex = end + 1
+  }
+
+  return calls
+}
+
+function parseTierConditions(prefix: string): TierCondition[] {
+  const conditionMatch = prefix.match(
+    /((?:(?:p|c|len)\s*(?:<|<=|>|>=)\s*[\d.eE+]+)(?:\s*&&\s*(?:p|c|len)\s*(?:<|<=|>|>=)\s*[\d.eE+]+)*)\s*\?\s*$/s
+  )
+  const condStr = conditionMatch?.[1] || ''
+  const conditions: TierCondition[] = []
+  if (!condStr) return conditions
+
+  for (const cp of condStr.split(/\s*&&\s*/)) {
+    const cm = cp.trim().match(/^(p|c|len)\s*(<|<=|>|>=)\s*([\d.eE+]+)$/)
+    if (cm) {
+      conditions.push({
+        var: cm[1] as TierCondition['var'],
+        op: cm[2] as TierCondition['op'],
+        value: Number(cm[3]),
+      })
+    }
+  }
+  return conditions
+}
+
 export function parseTiersFromExpr(exprStr: string): ParsedTier[] {
   if (!exprStr) return []
   try {
     const { body } = stripExprVersion(exprStr)
-    const condGroup =
-      `((?:(?:p|c|len)\\s*(?:<|<=|>|>=)\\s*[\\d.eE+]+)` +
-      `(?:\\s*&&\\s*(?:p|c|len)\\s*(?:<|<=|>|>=)\\s*[\\d.eE+]+)*)`
-    const tierRe = new RegExp(
-      `(?:${condGroup}\\s*\\?\\s*)?tier\\("([^"]*)",\\s*([^)]+)\\)`,
-      'g'
-    )
     const tiers: ParsedTier[] = []
-    let m
-    while ((m = tierRe.exec(body)) !== null) {
-      const condStr = m[1] || ''
-      const conditions: TierCondition[] = []
-      if (condStr) {
-        for (const cp of condStr.split(/\s*&&\s*/)) {
-          const cm = cp.trim().match(/^(p|c|len)\s*(<|<=|>|>=)\s*([\d.eE+]+)$/)
-          if (cm) {
-            conditions.push({
-              var: cm[1] as TierCondition['var'],
-              op: cm[2] as TierCondition['op'],
-              value: Number(cm[3]),
-            })
-          }
-        }
-      }
-      const tier = parseTierBody(m[3]) as ParsedTier
-      tier.label = m[2]
-      tier.conditions = conditions
+    for (const call of findTierCalls(body)) {
+      const tier = parseTierBody(call.body) as ParsedTier
+      const requestUnit = parseRequestUnitTierBody(call.body)
+      if (requestUnit) Object.assign(tier, requestUnit)
+      tier.label = call.label
+      tier.conditions = parseTierConditions(call.prefix)
       tiers.push(tier)
     }
     return tiers

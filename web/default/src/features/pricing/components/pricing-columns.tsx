@@ -181,6 +181,29 @@ export function usePricingColumns(
             )
           }
 
+          if (dynamicSummary.requestUnitEntries.length > 0) {
+            return (
+              <div className='min-w-[220px]'>
+                <span className='font-mono text-sm tabular-nums'>
+                  {dynamicSummary.requestUnitEntries.map((entry, index) => (
+                    <span key={entry.key}>
+                      {index > 0 && (
+                        <span className='text-muted-foreground/40 mx-1'>/</span>
+                      )}
+                      <span className='text-muted-foreground/80 mr-1'>
+                        {entry.label}
+                      </span>
+                      {stripTrailingZeros(entry.formatted)}
+                    </span>
+                  ))}
+                </span>
+                <div className='text-muted-foreground/50 text-[10px]'>
+                  / {t('Image')}
+                </div>
+              </div>
+            )
+          }
+
           const primaryEntries = dynamicSummary.primaryEntries.slice(0, 2)
           if (primaryEntries.length === 0) {
             return (

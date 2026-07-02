@@ -141,6 +141,21 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
                       </span>
                     ))}
                   </>
+                ) : dynamicSummary.requestUnitEntries.length > 0 ? (
+                  <>
+                    {dynamicSummary.requestUnitEntries.map((entry) => (
+                      <span
+                        key={entry.key}
+                        className='text-muted-foreground whitespace-nowrap'
+                      >
+                        {entry.label}{' '}
+                        <span className='text-foreground font-mono font-semibold'>
+                          {entry.formatted}
+                        </span>
+                        /{t('Image')}
+                      </span>
+                    ))}
+                  </>
                 ) : (
                   <span className='text-muted-foreground text-xs'>
                     {t('Dynamic Pricing')}

@@ -709,12 +709,16 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 				Input: []any{"hello world"},
 			}
 		case constant.EndpointTypeImageGeneration:
+			size := "1024x1024"
+			if strings.HasPrefix(strings.ToLower(model), "gpt-image-") {
+				size = "2048x1152"
+			}
 			// 返回 ImageRequest
 			return &dto.ImageRequest{
 				Model:  model,
 				Prompt: "a cute cat",
 				N:      lo.ToPtr(uint(1)),
-				Size:   "1024x1024",
+				Size:   size,
 			}
 		case constant.EndpointTypeJinaRerank:
 			// 返回 RerankRequest

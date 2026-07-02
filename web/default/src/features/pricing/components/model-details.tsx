@@ -55,6 +55,7 @@ import { DEFAULT_TOKEN_UNIT, QUOTA_TYPE_VALUES } from '../constants'
 import { usePricingData } from '../hooks/use-pricing-data'
 import {
   getDynamicPriceEntries,
+  getDynamicRequestUnitEntries,
   getDynamicPricingSummary,
   getDynamicPricingTiers,
   isDynamicPricingModel,
@@ -675,21 +676,42 @@ function GroupPricingSection(props: {
       )
     }
 
-    const priceFields = Array.from(
-      new Map(
-        dynamicTiers
-          .flatMap((tier) =>
-            getDynamicPriceEntries(tier, {
-              tokenUnit: props.tokenUnit,
-              showRechargePrice,
-              priceRate: props.priceRate,
-              usdExchangeRate: props.usdExchangeRate,
-              groupRatioMultiplier: 1,
-            })
-          )
-          .map((entry) => [entry.field, entry])
-      ).values()
-    )
+    const hasRequestUnitPrices =
+      getDynamicRequestUnitEntries(dynamicTiers, {
+        showRechargePrice,
+        priceRate: props.priceRate,
+        usdExchangeRate: props.usdExchangeRate,
+        groupRatioMultiplier: 1,
+      }).length > 0
+
+    const sortedDynamicTiers = hasRequestUnitPrices
+      ? [...dynamicTiers].sort((a, b) => {
+          const aRank = Number.parseFloat(a.label)
+          const bRank = Number.parseFloat(b.label)
+          if (Number.isFinite(aRank) && Number.isFinite(bRank)) {
+            return aRank - bRank
+          }
+          return a.label.localeCompare(b.label)
+        })
+      : dynamicTiers
+
+    const priceFields = hasRequestUnitPrices
+      ? []
+      : Array.from(
+          new Map(
+            dynamicTiers
+              .flatMap((tier) =>
+                getDynamicPriceEntries(tier, {
+                  tokenUnit: props.tokenUnit,
+                  showRechargePrice,
+                  priceRate: props.priceRate,
+                  usdExchangeRate: props.usdExchangeRate,
+                  groupRatioMultiplier: 1,
+                })
+              )
+              .map((entry) => [entry.field, entry])
+          ).values()
+        )
 
     return (
       <section>
@@ -719,10 +741,15 @@ function GroupPricingSection(props: {
                             {t(entry.shortLabel)}
                           </TableHead>
                         ))}
+                        {hasRequestUnitPrices && (
+                          <TableHead className={`${thClass} text-right`}>
+                            {t('Image')}
+                          </TableHead>
+                        )}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {dynamicTiers.map((tier, tierIndex) => {
+                      {sortedDynamicTiers.map((tier, tierIndex) => {
                         const entries = getDynamicPriceEntries(tier, {
                           tokenUnit: props.tokenUnit,
                           showRechargePrice,
@@ -733,6 +760,15 @@ function GroupPricingSection(props: {
                         const entryMap = new Map(
                           entries.map((entry) => [entry.field, entry])
                         )
+                        const requestUnitEntry = getDynamicRequestUnitEntries(
+                          [tier],
+                          {
+                            showRechargePrice,
+                            priceRate: props.priceRate,
+                            usdExchangeRate: props.usdExchangeRate,
+                            groupRatioMultiplier: ratio,
+                          }
+                        )[0]
 
                         return (
                           <TableRow key={`${group}-${tier.label || tierIndex}`}>
@@ -750,6 +786,11 @@ function GroupPricingSection(props: {
                                 </TableCell>
                               )
                             })}
+                            {hasRequestUnitPrices && (
+                              <TableCell className='py-2.5 text-right font-mono'>
+                                {requestUnitEntry?.formatted ?? '-'}
+                              </TableCell>
+                            )}
                           </TableRow>
                         )
                       })}
@@ -760,7 +801,9 @@ function GroupPricingSection(props: {
             )
           })}
           <p className='text-muted-foreground/40 mt-1.5 text-[10px]'>
-            {t('Prices shown per')} {tokenUnitLabel} tokens
+            {hasRequestUnitPrices
+              ? `${t('Prices shown per')} ${t('Image')}`
+              : `${t('Prices shown per')} ${tokenUnitLabel} tokens`}
           </p>
         </div>
       </section>
@@ -873,12 +916,12 @@ function GroupPricingSection(props: {
             })}
           </TableBody>
         </Table>
-        {isTokenBased && (
-          <p className='text-muted-foreground/40 mt-1.5 px-4 text-[10px] sm:px-0'>
-            {t('Prices shown per')} {tokenUnitLabel} tokens
-          </p>
-        )}
       </div>
+      <p className='text-muted-foreground/40 mt-2 text-[10px]'>
+        {isTokenBased
+          ? `${t('Prices shown per')} ${tokenUnitLabel} tokens`
+          : `${t('Prices shown per')} ${t('Request')}`}
+      </p>
     </section>
   )
 }

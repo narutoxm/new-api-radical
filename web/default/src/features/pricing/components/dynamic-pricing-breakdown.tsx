@@ -48,6 +48,7 @@ import {
   type RequestRuleGroup,
   type TierCondition,
 } from '../lib/billing-expr'
+import { formatDynamicRequestPrice } from '../lib/dynamic-price'
 
 type DynamicPricingBreakdownProps = {
   billingExpr: string | null | undefined
@@ -226,6 +227,9 @@ export function DynamicPricingBreakdown({
       (tier) => Number(tier[v.field as string as keyof ParsedTier] || 0) > 0
     )
   })
+  const hasRequestUnitPrices = tiers.some(
+    (tier) => Number(tier.requestUnitPrice || 0) > 0
+  )
 
   return (
     <section className='min-w-0 py-3 sm:py-4'>
@@ -285,6 +289,21 @@ export function DynamicPricingBreakdown({
                     </div>
                   )}
                   <div className='grid grid-cols-2 gap-x-3 gap-y-1.5'>
+                    {hasRequestUnitPrices && (
+                      <div className='min-w-0'>
+                        <div className='text-muted-foreground truncate text-[10px] font-medium tracking-wider uppercase'>
+                          {t('Image')}
+                        </div>
+                        <div className='truncate font-mono text-sm font-semibold'>
+                          {tier.requestUnitPrice
+                            ? formatDynamicRequestPrice(
+                                Number(tier.requestUnitPrice),
+                                {}
+                              )
+                            : '-'}
+                        </div>
+                      </div>
+                    )}
                     {visiblePriceFields.map((v) => {
                       const value = Number(
                         tier[v.field as string as keyof ParsedTier] || 0
@@ -322,6 +341,11 @@ export function DynamicPricingBreakdown({
                       {t(v.shortLabel)}
                     </TableHead>
                   ))}
+                  {hasRequestUnitPrices && (
+                    <TableHead className='text-muted-foreground py-2 text-right font-medium'>
+                      {t('Image')}
+                    </TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -381,6 +405,20 @@ export function DynamicPricingBreakdown({
                           </TableCell>
                         )
                       })}
+                      {hasRequestUnitPrices && (
+                        <TableCell className='py-2.5 text-right align-top font-mono'>
+                          {tier.requestUnitPrice ? (
+                            <span className='font-semibold'>
+                              {formatDynamicRequestPrice(
+                                Number(tier.requestUnitPrice),
+                                {}
+                              )}
+                            </span>
+                          ) : (
+                            '-'
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   )
                 })}
