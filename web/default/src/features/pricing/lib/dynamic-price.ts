@@ -68,6 +68,7 @@ export type DynamicPricingSummary = {
 }
 
 const PRIMARY_DYNAMIC_FIELDS = new Set(['inputPrice', 'outputPrice'])
+const DISPLAY_TIER_PRIORITY = ['standard', 'base']
 
 export function isDynamicPricingModel(model: PricingModel): boolean {
   return model.billing_mode === 'tiered_expr' && Boolean(model.billing_expr)
@@ -209,7 +210,12 @@ export function getDynamicPricingSummary(
   if (!isDynamicPricingModel(model)) return null
 
   const tiers = getDynamicPricingTiers(model)
-  const tier = tiers[0] || null
+  const tier =
+    DISPLAY_TIER_PRIORITY.map((label) =>
+      tiers.find((item) => item.label.toLowerCase() === label)
+    ).find(Boolean) ||
+    tiers[0] ||
+    null
   const entries = getDynamicPriceEntries(tier, options)
   const requestUnitEntries = getDynamicRequestUnitEntries(tiers, options)
   const rawExpression = model.billing_expr || ''
