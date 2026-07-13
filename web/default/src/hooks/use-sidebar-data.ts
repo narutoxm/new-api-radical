@@ -28,14 +28,16 @@ import {
   MessageSquare,
   Radio,
   Settings,
+  Share2,
   Ticket,
   User,
-  UserPlus,
   Users,
   Wallet,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { type SidebarData } from '@/components/layout/types'
+import { useTopupInfo } from '@/features/wallet/hooks'
+import { DEFAULT_REDEMPTION_CODE_PURCHASE_URL } from '@/features/wallet/constants'
 
 /**
  * Root navigation groups for the application sidebar.
@@ -45,6 +47,9 @@ import { type SidebarData } from '@/components/layout/types'
  */
 export function useSidebarData(): SidebarData {
   const { t } = useTranslation()
+  const { topupInfo } = useTopupInfo()
+  const redemptionCodePurchaseUrl =
+    topupInfo?.topup_link?.trim() || DEFAULT_REDEMPTION_CODE_PURCHASE_URL
 
   return {
     navGroups: [
@@ -56,10 +61,12 @@ export function useSidebarData(): SidebarData {
             title: t('Playground'),
             url: '/playground',
             icon: FlaskConical,
+            iconClassName: 'text-violet-500',
           },
           {
             title: t('Chat'),
             icon: MessageSquare,
+            iconClassName: 'text-sky-500',
             type: 'chat-presets',
           },
         ],
@@ -72,21 +79,25 @@ export function useSidebarData(): SidebarData {
             title: t('Overview'),
             url: '/dashboard/overview',
             icon: Activity,
+            iconClassName: 'text-green-500',
           },
           {
             title: t('Dashboard'),
             url: '/dashboard/models',
             icon: LayoutDashboard,
+            iconClassName: 'text-blue-500',
           },
           {
             title: t('API Keys'),
             url: '/keys',
             icon: Key,
+            iconClassName: 'text-orange-500',
           },
           {
             title: t('Usage Logs'),
             url: '/usage-logs/common',
             icon: FileText,
+            iconClassName: 'text-gray-500',
           },
           {
             title: t('Task Logs'),
@@ -94,6 +105,7 @@ export function useSidebarData(): SidebarData {
             activeUrls: ['/usage-logs/drawing'],
             configUrls: ['/usage-logs/drawing', '/usage-logs/task'],
             icon: ListTodo,
+            iconClassName: 'text-teal-500',
           },
         ],
       },
@@ -105,16 +117,27 @@ export function useSidebarData(): SidebarData {
             title: t('Wallet'),
             url: '/wallet',
             icon: Wallet,
+            iconClassName: 'text-amber-500',
           },
           {
-            title: t('My Referrals'),
+            title: t('Referral Program'),
             url: '/affiliate',
-            icon: UserPlus,
+            icon: Share2,
+            iconClassName: 'text-pink-500',
           },
           {
             title: t('Profile'),
             url: '/profile',
             icon: User,
+            iconClassName: 'text-slate-500',
+          },
+          {
+            title: t('Card Top-up'),
+            url: redemptionCodePurchaseUrl,
+            external: true,
+            configUrls: ['/wallet'],
+            icon: CreditCard,
+            iconClassName: 'text-emerald-500',
           },
         ],
       },
@@ -126,32 +149,38 @@ export function useSidebarData(): SidebarData {
             title: t('Channels'),
             url: '/channels',
             icon: Radio,
+            iconClassName: 'text-cyan-500',
           },
           {
             title: t('Models'),
             url: '/models/metadata',
             icon: Box,
+            iconClassName: 'text-purple-500',
           },
           {
             title: t('Users'),
             url: '/users',
             icon: Users,
+            iconClassName: 'text-rose-500',
           },
           {
             title: t('Redemption Codes'),
             url: '/redemption-codes',
             icon: Ticket,
+            iconClassName: 'text-lime-600',
           },
           {
             title: t('Subscription Management'),
             url: '/subscriptions',
             icon: CreditCard,
+            iconClassName: 'text-yellow-500',
           },
           {
             title: t('System Settings'),
             url: '/system-settings/site',
             activeUrls: ['/system-settings'],
             icon: Settings,
+            iconClassName: 'text-slate-500',
           },
         ],
       },

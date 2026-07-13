@@ -41,6 +41,7 @@ import {
   getMinTopupAmount,
   calculatePresetPricing,
 } from '../lib'
+import { DEFAULT_REDEMPTION_CODE_PURCHASE_URL } from '../constants'
 import type {
   PaymentMethod,
   PresetAmount,
@@ -49,9 +50,6 @@ import type {
   WaffoPayMethod,
 } from '../types'
 import { CreemProductsSection } from './creem-products-section'
-
-const REDEMPTION_CODE_PURCHASE_URL =
-  'https://pay.ldxp.cn/shop/SPRAWLBRIDGE/yq6pwv'
 
 interface RechargeFormCardProps {
   topupInfo: TopupInfo | null
@@ -137,6 +135,8 @@ export function RechargeFormCard({
     Array.isArray(waffoPayMethods) && waffoPayMethods.length > 0
   const minTopup = getMinTopupAmount(topupInfo)
   const redemptionEnabled = topupInfo?.enable_redemption !== false
+  const redemptionCodePurchaseUrl =
+    topupInfo?.topup_link?.trim() || DEFAULT_REDEMPTION_CODE_PURCHASE_URL
 
   if (loading) {
     return (
@@ -484,7 +484,7 @@ export function RechargeFormCard({
               className='h-auto gap-1 p-0 text-xs'
               render={
                 <a
-                  href={REDEMPTION_CODE_PURCHASE_URL}
+                  href={redemptionCodePurchaseUrl}
                   target='_blank'
                   rel='noopener noreferrer'
                 />

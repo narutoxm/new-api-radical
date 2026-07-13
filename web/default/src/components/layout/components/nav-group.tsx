@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { type ReactNode, useState, useEffect } from 'react'
 import { Link, useLocation } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import {
   Collapsible,
@@ -120,14 +121,28 @@ function NavBadge({ children }: { children: ReactNode }) {
  */
 function SidebarMenuLink({ item, href }: { item: NavLink; href: string }) {
   const { setOpenMobile } = useSidebar()
+  const isExternal = Boolean(item.external)
+  const menuLink = isExternal ? (
+    <a
+      href={item.url as string}
+      target='_blank'
+      rel='noopener noreferrer'
+      onClick={() => setOpenMobile(false)}
+    />
+  ) : (
+    <Link to={item.url} onClick={() => setOpenMobile(false)} />
+  )
+
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        isActive={checkIsActive(href, item)}
+        isActive={!isExternal && checkIsActive(href, item)}
         tooltip={item.title}
-        render={<Link to={item.url} onClick={() => setOpenMobile(false)} />}
+        render={menuLink}
       >
-        {item.icon && <item.icon className='shrink-0' />}
+        {item.icon && (
+          <item.icon className={cn('shrink-0', item.iconClassName)} />
+        )}
         <span className='min-w-0 flex-1 truncate'>{item.title}</span>
         {item.badge && <NavBadge>{item.badge}</NavBadge>}
       </SidebarMenuButton>
@@ -170,7 +185,9 @@ function SidebarMenuCollapsible({
         className='group/collapsible-trigger'
         render={<SidebarMenuButton tooltip={item.title} />}
       >
-        {item.icon && <item.icon className='shrink-0' />}
+        {item.icon && (
+          <item.icon className={cn('shrink-0', item.iconClassName)} />
+        )}
         <span className='min-w-0 flex-1 truncate'>{item.title}</span>
         {item.badge && <NavBadge>{item.badge}</NavBadge>}
         <ChevronRight className='ms-auto size-4 shrink-0 transition-transform duration-200 group-data-[panel-open]/collapsible-trigger:rotate-90' />
@@ -185,7 +202,11 @@ function SidebarMenuCollapsible({
                   <Link to={subItem.url} onClick={() => setOpenMobile(false)} />
                 }
               >
-                {subItem.icon && <subItem.icon className='shrink-0' />}
+                {subItem.icon && (
+                  <subItem.icon
+                    className={cn('shrink-0', subItem.iconClassName)}
+                  />
+                )}
                 <span className='min-w-0 flex-1 truncate'>{subItem.title}</span>
                 {subItem.badge && <NavBadge>{subItem.badge}</NavBadge>}
               </SidebarMenuSubButton>
@@ -219,7 +240,9 @@ function SidebarMenuCollapsedDropdown({
             />
           }
         >
-          {item.icon && <item.icon className='shrink-0' />}
+          {item.icon && (
+            <item.icon className={cn('shrink-0', item.iconClassName)} />
+          )}
           <span className='min-w-0 flex-1 truncate'>{item.title}</span>
           {item.badge && <NavBadge>{item.badge}</NavBadge>}
           <ChevronRight className='ms-auto size-4 shrink-0 transition-transform duration-200 group-data-[popup-open]/dropdown-trigger:rotate-90' />
@@ -236,11 +259,11 @@ function SidebarMenuCollapsedDropdown({
                 render={
                   <Link
                     to={sub.url}
-                    className={`${checkIsActive(href, sub) ? 'bg-secondary' : ''}`}
+                    className={cn(checkIsActive(href, sub) && 'bg-secondary')}
                   />
                 }
               >
-                {sub.icon && <sub.icon />}
+                {sub.icon && <sub.icon className={sub.iconClassName} />}
                 <span className='max-w-52 text-wrap'>{sub.title}</span>
                 {sub.badge && (
                   <span className='ms-auto text-xs'>{sub.badge}</span>

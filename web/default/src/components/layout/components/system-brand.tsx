@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { Link } from '@tanstack/react-router'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useStatus } from '@/hooks/use-status'
@@ -51,8 +52,28 @@ export function SystemBrand(props: SystemBrandProps) {
 
   const variant = props.variant ?? 'sidebar'
   const name = status?.system_name || props.defaultName || 'New API'
-  const version =
-    status?.version || props.defaultVersion || t('Unknown version')
+  const slogans = useMemo(
+    () => [
+      t('I will keep things steady for you.'),
+      t('Complex work is on me.'),
+      t('Your code is safe with me.'),
+      t('You think it through. I will build it.'),
+      t('Bugs worry about me, not you.'),
+      t('Ship with confidence. I have you covered.'),
+    ],
+    [t]
+  )
+  const [sloganIndex, setSloganIndex] = useState(0)
+
+  useEffect(() => {
+    if (variant !== 'sidebar' || slogans.length <= 1) return
+
+    const timer = window.setInterval(() => {
+      setSloganIndex((current) => (current + 1) % slogans.length)
+    }, 3500)
+
+    return () => window.clearInterval(timer)
+  }, [slogans.length, variant])
 
   if (variant === 'inline') {
     return (
@@ -93,7 +114,25 @@ export function SystemBrand(props: SystemBrandProps) {
           </div>
           <div className='grid flex-1 text-start text-sm leading-tight group-data-[collapsible=icon]:hidden'>
             <span className='truncate font-semibold'>{name}</span>
-            <span className='truncate text-xs'>{version}</span>
+            <span className='text-sidebar-foreground/70 truncate text-xs'>
+              <span className='relative block h-4 overflow-hidden'>
+                <span
+                  className='absolute inset-x-0 transition-transform duration-500 ease-in-out'
+                  style={{
+                    transform: `translateY(-${sloganIndex * 100}%)`,
+                  }}
+                >
+                  {slogans.map((slogan) => (
+                    <span
+                      key={slogan}
+                      className='block h-4 truncate leading-4'
+                    >
+                      {slogan}
+                    </span>
+                  ))}
+                </span>
+              </span>
+            </span>
           </div>
         </SidebarMenuButton>
       </SidebarMenuItem>

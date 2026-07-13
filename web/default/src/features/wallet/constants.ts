@@ -69,3 +69,9 @@ export const DEFAULT_DISCOUNT_RATE = 1.0
  * Default minimum topup amount
  */
 export const DEFAULT_MIN_TOPUP = 1
+
+/**
+ * Fallback purchase link used when Top-Up Link is not configured.
+ */
+export const DEFAULT_REDEMPTION_CODE_PURCHASE_URL =
+  'https://pay.ldxp.cn/shop/SPRAWLBRIDGE/yq6pwv'

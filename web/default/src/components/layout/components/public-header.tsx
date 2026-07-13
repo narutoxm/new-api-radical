@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { NotificationDialog } from '@/components/notification-dialog'
 import { NotificationPopover } from '@/components/notification-popover'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
@@ -450,6 +451,17 @@ export function PublicHeader(props: PublicHeaderProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {showNotifications && (
+        <NotificationDialog
+          open={notifications.dialogOpen}
+          onOpenChange={notifications.setDialogOpen}
+          notice={notifications.notice}
+          announcements={notifications.announcements}
+          loading={notifications.loading}
+          onCloseToday={notifications.closeDialogToday}
+        />
+      )}
     </>
   )
 }
