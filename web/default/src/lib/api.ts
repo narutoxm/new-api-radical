@@ -20,6 +20,7 @@ import axios, { type AxiosRequestConfig } from 'axios'
 import { t } from 'i18next'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
+import { normalizeStatusBranding } from './brand'
 
 declare module 'axios' {
   export interface AxiosRequestConfig {
@@ -231,7 +232,7 @@ export async function getUserGroups(): Promise<{
 // Get system status
 export async function getStatus() {
   const res = await api.get('/api/status')
-  return res.data?.data as Record<string, unknown>
+  return normalizeStatusBranding(res.data?.data as Record<string, unknown>)
 }
 
 // Get system notice

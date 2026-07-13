@@ -22,7 +22,9 @@ For commercial licensing, please contact support@quantumnous.com
 
 // System Configuration Defaults
 export const DEFAULT_SYSTEM_NAME = 'New API'
-export const DEFAULT_LOGO = '/logo.png'
+export const DOGCHAT_SYSTEM_NAME = 'DogChat'
+export const DOGCHAT_LOGO = '/DogChat.svg'
+export const DEFAULT_LOGO = DOGCHAT_LOGO
 
 // LocalStorage Keys
 export const STORAGE_KEYS = {

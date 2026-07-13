@@ -25,6 +25,7 @@ import {
   DEFAULT_CURRENCY_CONFIG,
 } from '@/stores/system-config-store'
 import { DEFAULT_SYSTEM_NAME, DEFAULT_LOGO } from '@/lib/constants'
+import { normalizeBrandLogo, normalizeBrandName } from '@/lib/brand'
 import { applyFaviconToDom } from '@/lib/dom-utils'
 
 interface UseSystemConfigOptions {
@@ -92,8 +93,8 @@ export function mapStatusDataToConfig(
   }
 
   return {
-    systemName: data.system_name || DEFAULT_SYSTEM_NAME,
-    logo: data.logo || DEFAULT_LOGO,
+    systemName: normalizeBrandName(data.system_name, DEFAULT_SYSTEM_NAME),
+    logo: normalizeBrandLogo(data.logo, DEFAULT_LOGO),
     footerHtml: data.footer_html,
     demoSiteEnabled: data.demo_site_enabled,
     displayTokenStatEnabled: data.display_token_stat_enabled,
@@ -150,6 +151,11 @@ export function useSystemConfig(options: UseSystemConfigOptions = {}) {
     setLoadedLogoUrl,
     setLoading,
   } = useSystemConfigStore()
+  const normalizedSystemName = normalizeBrandName(
+    config.systemName,
+    DEFAULT_SYSTEM_NAME
+  )
+  const normalizedLogo = normalizeBrandLogo(config.logo, DEFAULT_LOGO)
 
   // Load config from backend
   const loadConfig = useCallback(async () => {
@@ -171,33 +177,33 @@ export function useSystemConfig(options: UseSystemConfigOptions = {}) {
 
   // Preload logo image when URL changes
   useEffect(() => {
-    const { logo } = config
-
     // Skip if logo is already loaded
-    if (!logo || logo === loadedLogoUrl) return
+    if (!normalizedLogo || normalizedLogo === loadedLogoUrl) return
 
     // Preload new logo
     return preloadImage(
-      logo,
+      normalizedLogo,
       () => {
-        setLoadedLogoUrl(logo)
-        applyFaviconToDom(logo)
+        setLoadedLogoUrl(normalizedLogo)
+        applyFaviconToDom(normalizedLogo)
       },
       () => {
-        if (logo !== DEFAULT_LOGO) {
+        if (normalizedLogo !== DEFAULT_LOGO) {
           // eslint-disable-next-line no-console
-          console.error('Failed to load logo:', logo)
+          console.error('Failed to load logo:', normalizedLogo)
         }
         // Mark as loaded even on error to prevent infinite retry
-        setLoadedLogoUrl(logo)
+        setLoadedLogoUrl(normalizedLogo)
       }
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.logo, loadedLogoUrl, setLoadedLogoUrl])
+  }, [normalizedLogo, loadedLogoUrl, setLoadedLogoUrl])
 
   return {
     ...config,
+    systemName: normalizedSystemName,
+    logo: normalizedLogo,
     loading,
-    logoLoaded: config.logo === loadedLogoUrl && !!loadedLogoUrl,
+    logoLoaded: normalizedLogo === loadedLogoUrl && !!loadedLogoUrl,
   }
 }

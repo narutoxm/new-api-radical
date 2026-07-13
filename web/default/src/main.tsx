@@ -29,6 +29,7 @@ import i18next from 'i18next'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import { getStatus, isTransientNetworkError } from '@/lib/api'
+import { normalizeBrandLogo, normalizeBrandName } from '@/lib/brand'
 import { installBuildMetadata } from '@/lib/build-metadata'
 import '@/lib/dayjs'
 import { applyFaviconToDom } from '@/lib/dom-utils'
@@ -157,8 +158,8 @@ const rootElement = document.getElementById('root')!
       const saved = localStorage.getItem('status')
       if (saved) {
         const s = JSON.parse(saved)
-        if (s?.system_name) apply(s.system_name)
-        if (s?.logo) applyFaviconToDom(s.logo)
+        if (s?.system_name) apply(normalizeBrandName(s.system_name))
+        if (s?.logo) applyFaviconToDom(normalizeBrandLogo(s.logo))
       }
     } catch {
       /* empty */
@@ -167,14 +168,14 @@ const rootElement = document.getElementById('root')!
     getStatus()
       .then((s) => {
         if (s?.system_name) {
-          apply(s.system_name as string)
+          apply(normalizeBrandName(s.system_name))
           try {
             localStorage.setItem('status', JSON.stringify(s))
           } catch {
             /* empty */
           }
         }
-        if (s?.logo) applyFaviconToDom(s.logo as string)
+        if (s?.logo) applyFaviconToDom(normalizeBrandLogo(s.logo))
       })
       .catch(() => {
         /* empty */

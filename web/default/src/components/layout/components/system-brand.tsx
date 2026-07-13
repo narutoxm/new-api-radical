@@ -19,8 +19,8 @@ For commercial licensing, please contact support@quantumnous.com
 import { Link } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { normalizeBrandName } from '@/lib/brand'
 import { cn } from '@/lib/utils'
-import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import {
   SidebarMenu,
@@ -47,11 +47,10 @@ type SystemBrandProps = {
  */
 export function SystemBrand(props: SystemBrandProps) {
   const { t } = useTranslation()
-  const { status } = useStatus()
-  const { logo } = useSystemConfig()
+  const { logo, systemName } = useSystemConfig()
 
   const variant = props.variant ?? 'sidebar'
-  const name = status?.system_name || props.defaultName || 'New API'
+  const name = normalizeBrandName(systemName || props.defaultName)
   const slogans = useMemo(
     () => [
       t('I will keep things steady for you.'),
