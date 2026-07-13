@@ -27,7 +27,6 @@ import { Search } from '@/components/search'
 import { defaultTopNavLinks } from '../config/top-nav.config'
 import { type TopNavLink } from '../types'
 import { Header } from './header'
-import { SystemBrand } from './system-brand'
 import { TopNav } from './top-nav'
 
 /**
@@ -113,8 +112,6 @@ export function AppHeader({
   return (
     <>
       <Header>
-        <SystemBrand variant='inline' />
-
         {leftContent ? (
           <div className='ms-2 flex items-center'>{leftContent}</div>
         ) : null}
