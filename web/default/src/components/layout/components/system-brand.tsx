@@ -53,12 +53,12 @@ export function SystemBrand(props: SystemBrandProps) {
   const name = normalizeBrandName(systemName || props.defaultName)
   const slogans = useMemo(
     () => [
-      t('Built steady. Running sharp.'),
-      t('I keep the stack locked in.'),
-      t('Hard problems. Clean execution.'),
-      t('Your ideas. My runtime.'),
-      t('Bugs stop at this line.'),
-      t('Deploy calm. Move fast.'),
+      t('Night is deep. The service stays awake.'),
+      t('Wind moves through logs. The system holds.'),
+      t('When requests arrive, I catch them.'),
+      t('Complexity fades into the dark. Answers return on time.'),
+      t('Bugs play like old songs. They stop here.'),
+      t('Dream farther. I will keep now steady.'),
     ],
     [t]
   )
