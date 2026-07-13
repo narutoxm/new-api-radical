@@ -69,7 +69,7 @@ export function SystemBrand(props: SystemBrandProps) {
 
     const timer = window.setInterval(() => {
       setSloganIndex((current) => (current + 1) % slogans.length)
-    }, 3500)
+    }, 3000)
 
     return () => window.clearInterval(timer)
   }, [slogans.length, variant])
