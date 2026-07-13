@@ -23,12 +23,10 @@ import { useSidebarView } from '@/hooks/use-sidebar-view'
 import {
   Sidebar,
   SidebarContent,
-  SidebarHeader,
   SidebarRail,
 } from '@/components/ui/sidebar'
 import { NavGroup } from './nav-group'
 import { SidebarViewHeader } from './sidebar-view-header'
-import { SystemBrand } from './system-brand'
 
 /**
  * Application sidebar.
@@ -54,13 +52,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible={collapsible} variant={variant}>
-      {view ? (
-        <SidebarViewHeader view={view} />
-      ) : (
-        <SidebarHeader>
-          <SystemBrand />
-        </SidebarHeader>
-      )}
+      {view ? <SidebarViewHeader view={view} /> : null}
 
       <SidebarContent className='py-2'>
         <AnimatePresence mode='wait' initial={false}>
