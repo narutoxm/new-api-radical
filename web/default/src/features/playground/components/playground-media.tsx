@@ -48,7 +48,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { GroupSelector, ModelSelector } from '@/components/model-group-selector'
-import { sendImageGeneration } from '../api'
+import { sendImageEdit, sendImageGeneration } from '../api'
 import type {
   GroupOption,
   ImageGenerationData,
@@ -73,6 +73,7 @@ interface ReferenceImage {
   id: string
   name: string
   dataUrl: string
+  file: File
 }
 
 const imageRatios = ['1:1', '16:9', '9:16', '4:3', '3:4'] as const
@@ -167,6 +168,23 @@ function readFileAsDataUrl(file: File) {
   })
 }
 
+function createImageEditFormData(
+  payload: ImageGenerationRequest,
+  referenceImages: ReferenceImage[]
+) {
+  const formData = new FormData()
+  formData.append('model', payload.model)
+  formData.append('prompt', payload.prompt)
+  if (payload.group) formData.append('group', payload.group)
+  if (payload.n) formData.append('n', String(payload.n))
+  if (payload.size) formData.append('size', payload.size)
+  if (payload.quality) formData.append('quality', payload.quality)
+  referenceImages.forEach((image, index) => {
+    formData.append(index === 0 ? 'image' : `image[${index}]`, image.file)
+  })
+  return formData
+}
+
 export function PlaygroundMedia(props: PlaygroundMediaProps) {
   if (props.mode === 'video') {
     return <PlaygroundVideoComingSoon />
@@ -216,11 +234,13 @@ function PlaygroundImage({
         size: imageSize,
         aspect_ratio: imageRatio,
         response_format: 'url',
-        ...(canUseReferenceImages && referenceImages.length > 0
-          ? { images: referenceImages.map((image) => image.dataUrl) }
-          : {}),
       }
-      const response = await sendImageGeneration(payload)
+      const response =
+        canUseReferenceImages && referenceImages.length > 0
+          ? await sendImageEdit(
+              createImageEditFormData(payload, referenceImages)
+            )
+          : await sendImageGeneration(payload)
       setImages(response.data || [])
     } catch (error) {
       const message =
@@ -262,6 +282,7 @@ function PlaygroundImage({
                 id: createReferenceImageId(),
                 name: file.name,
                 dataUrl,
+                file,
               },
             ]
       )
