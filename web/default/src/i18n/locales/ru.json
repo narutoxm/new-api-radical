@@ -4604,6 +4604,13 @@
     "Zero retention": "Без хранения данных",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Add reference image": "Добавить референсное изображение",
+    "Failed to read image file": "Не удалось прочитать файл изображения",
+    "Generating images...": "Создание изображений...",
+    "gpt-image-2 and gpt-image-1.5 support reference images. Add up to 5 images.": "gpt-image-2 и gpt-image-1.5 поддерживают референсные изображения. Добавьте до 5 изображений.",
+    "Only JPEG, PNG, and WebP images are supported": "Поддерживаются только изображения JPEG, PNG и WebP",
+    "You can add up to {{count}} reference images": "Можно добавить до {{count}} референсных изображений",
+    "Your image is being generated": "Ваше изображение создаётся"
   }
 }

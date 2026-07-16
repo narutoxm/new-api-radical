@@ -4604,6 +4604,13 @@
     "Zero retention": "Không lưu dữ liệu",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Add reference image": "Thêm ảnh tham chiếu",
+    "Failed to read image file": "Không thể đọc tệp hình ảnh",
+    "Generating images...": "Đang tạo hình ảnh...",
+    "gpt-image-2 and gpt-image-1.5 support reference images. Add up to 5 images.": "gpt-image-2 và gpt-image-1.5 hỗ trợ ảnh tham chiếu. Thêm tối đa 5 ảnh.",
+    "Only JPEG, PNG, and WebP images are supported": "Chỉ hỗ trợ ảnh JPEG, PNG và WebP",
+    "You can add up to {{count}} reference images": "Bạn có thể thêm tối đa {{count}} ảnh tham chiếu",
+    "Your image is being generated": "Hình ảnh của bạn đang được tạo"
   }
 }

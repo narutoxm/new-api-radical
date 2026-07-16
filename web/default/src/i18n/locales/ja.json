@@ -4604,6 +4604,13 @@
     "Zero retention": "データ保持なし",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V 4",
-    "Zoom": "ズーム"
+    "Zoom": "ズーム",
+    "Add reference image": "参照画像を追加",
+    "Failed to read image file": "画像ファイルの読み込みに失敗しました",
+    "Generating images...": "画像を生成しています...",
+    "gpt-image-2 and gpt-image-1.5 support reference images. Add up to 5 images.": "gpt-image-2 と gpt-image-1.5 は参照画像に対応しています。最大 5 枚まで追加できます。",
+    "Only JPEG, PNG, and WebP images are supported": "JPEG、PNG、WebP 画像のみ対応しています",
+    "You can add up to {{count}} reference images": "参照画像は最大 {{count}} 枚まで追加できます",
+    "Your image is being generated": "画像を生成中です"
   }
 }
