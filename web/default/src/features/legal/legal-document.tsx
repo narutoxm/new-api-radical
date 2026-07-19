@@ -31,6 +31,7 @@ type LegalDocumentProps = {
   queryKey: string
   fetchDocument: () => Promise<LegalDocumentResponse>
   emptyMessage: string
+  fallbackContent?: string
 }
 
 function isValidUrl(value: string) {
@@ -51,6 +52,7 @@ export function LegalDocument({
   queryKey,
   fetchDocument,
   emptyMessage,
+  fallbackContent,
 }: LegalDocumentProps) {
   const { t } = useTranslation()
   const { data, isLoading } = useQuery({
@@ -59,11 +61,12 @@ export function LegalDocument({
     staleTime: 10 * 60 * 1000,
   })
 
-  const rawContent = data?.data?.trim() ?? ''
+  const configuredContent = data?.data?.trim() ?? ''
+  const rawContent = configuredContent || fallbackContent?.trim() || ''
   const hasContent = rawContent.length > 0
   const isUrl = hasContent && isValidUrl(rawContent)
   const isHtml = hasContent && !isUrl && isLikelyHtml(rawContent)
-  const success = data?.success ?? false
+  const success = (data?.success ?? false) || Boolean(fallbackContent?.trim())
 
   if (isLoading) {
     return (

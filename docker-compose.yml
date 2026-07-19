@@ -1,15 +1,16 @@
 services:
   new-api-radical:
-    image: ghcr.io/narutoxm/new-api-radical:latest
+    image: ghcr.io/narutoxm/new-api-radical:v1.0.22
     container_name: new-api-radical
     restart: unless-stopped
     command: --log-dir /app/logs
     env_file:
       - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./data:/data
       - ./logs:/app/logs
-      - /var/run/mysqld:/var/run/mysqld:ro
     networks:
       - claude_code_hub
     healthcheck:

@@ -16,10 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { DEFAULT_LEGAL_DOCUMENTS_ENABLED } from '@/features/legal/default-documents'
 import type { SystemStatus } from '../types'
 
 interface LegalConsentProps {
@@ -35,9 +35,10 @@ export function LegalConsent({
   onCheckedChange,
   className,
 }: LegalConsentProps) {
-  const { t } = useTranslation()
-  const hasUserAgreement = Boolean(status?.user_agreement_enabled)
-  const hasPrivacyPolicy = Boolean(status?.privacy_policy_enabled)
+  const hasUserAgreement =
+    DEFAULT_LEGAL_DOCUMENTS_ENABLED || Boolean(status?.user_agreement_enabled)
+  const hasPrivacyPolicy =
+    DEFAULT_LEGAL_DOCUMENTS_ENABLED || Boolean(status?.privacy_policy_enabled)
 
   if (!hasUserAgreement && !hasPrivacyPolicy) {
     return null
@@ -65,7 +66,7 @@ export function LegalConsent({
         className='text-muted-foreground items-start gap-1 text-left text-xs leading-5 font-normal'
       >
         <span>
-          {t('I have read and agree to the')}{' '}
+          I have read and agree to the{' '}
           {hasUserAgreement && (
             <a
               href='/user-agreement'
@@ -73,7 +74,7 @@ export function LegalConsent({
               rel='noopener noreferrer'
               className='text-primary hover:underline'
             >
-              {t('User Agreement')}
+              User Agreement
             </a>
           )}
           {hasUserAgreement && hasPrivacyPolicy && ' and the '}
@@ -84,7 +85,7 @@ export function LegalConsent({
               rel='noopener noreferrer'
               className='text-primary hover:underline'
             >
-              {t('Privacy Policy')}
+              Privacy Policy
             </a>
           )}
           .

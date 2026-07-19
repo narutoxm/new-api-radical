@@ -57,6 +57,7 @@ import {
   getAffiliateCode,
   saveAffiliateCode,
 } from '@/features/auth/lib/storage'
+import { DEFAULT_LEGAL_DOCUMENTS_ENABLED } from '@/features/legal/default-documents'
 
 export function SignUpForm({
   className,
@@ -103,8 +104,10 @@ export function SignUpForm({
 
   const emailValue = form.watch('email')
   const emailVerificationRequired = !!status?.email_verification
-  const hasUserAgreement = Boolean(status?.user_agreement_enabled)
-  const hasPrivacyPolicy = Boolean(status?.privacy_policy_enabled)
+  const hasUserAgreement =
+    DEFAULT_LEGAL_DOCUMENTS_ENABLED || Boolean(status?.user_agreement_enabled)
+  const hasPrivacyPolicy =
+    DEFAULT_LEGAL_DOCUMENTS_ENABLED || Boolean(status?.privacy_policy_enabled)
   const requiresLegalConsent = hasUserAgreement || hasPrivacyPolicy
   const oauthRegisterEnabled =
     status?.oauth_register_enabled ??

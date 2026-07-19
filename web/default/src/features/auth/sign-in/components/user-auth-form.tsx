@@ -60,6 +60,7 @@ import { useAuthRedirect } from '@/features/auth/hooks/use-auth-redirect'
 import { useTurnstile } from '@/features/auth/hooks/use-turnstile'
 import { beginPasskeyLogin, finishPasskeyLogin } from '@/features/auth/passkey'
 import type { AuthFormProps } from '@/features/auth/types'
+import { DEFAULT_LEGAL_DOCUMENTS_ENABLED } from '@/features/legal/default-documents'
 
 export function UserAuthForm({
   className,
@@ -94,8 +95,10 @@ export function UserAuthForm({
   } = useTurnstile()
   const { handleLoginSuccess, redirectTo2FA } = useAuthRedirect()
 
-  const hasUserAgreement = Boolean(status?.user_agreement_enabled)
-  const hasPrivacyPolicy = Boolean(status?.privacy_policy_enabled)
+  const hasUserAgreement =
+    DEFAULT_LEGAL_DOCUMENTS_ENABLED || Boolean(status?.user_agreement_enabled)
+  const hasPrivacyPolicy =
+    DEFAULT_LEGAL_DOCUMENTS_ENABLED || Boolean(status?.privacy_policy_enabled)
   const requiresLegalConsent = hasUserAgreement || hasPrivacyPolicy
   const passkeyButtonDisabled =
     isPasskeyLoading ||

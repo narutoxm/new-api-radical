@@ -16,8 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
+import { DEFAULT_LEGAL_DOCUMENTS_ENABLED } from '@/features/legal/default-documents'
 import type { SystemStatus } from '../types'
 
 interface TermsFooterProps {
@@ -31,14 +31,15 @@ export function TermsFooter({
   className,
   status,
 }: TermsFooterProps) {
-  const { t } = useTranslation()
   const text =
     variant === 'sign-in'
       ? 'By clicking sign in, you agree to our'
       : 'By creating an account, you agree to our'
 
-  const hasUserAgreement = Boolean(status?.user_agreement_enabled)
-  const hasPrivacyPolicy = Boolean(status?.privacy_policy_enabled)
+  const hasUserAgreement =
+    DEFAULT_LEGAL_DOCUMENTS_ENABLED || Boolean(status?.user_agreement_enabled)
+  const hasPrivacyPolicy =
+    DEFAULT_LEGAL_DOCUMENTS_ENABLED || Boolean(status?.privacy_policy_enabled)
 
   if (!hasUserAgreement && !hasPrivacyPolicy) {
     return null
@@ -76,8 +77,7 @@ export function TermsFooter({
       )}
       {secondLink && (
         <>
-          {' '}
-          {t('and')}{' '}
+          {' and '}
           <a
             href={secondLink.href}
             className='hover:text-primary underline underline-offset-4'

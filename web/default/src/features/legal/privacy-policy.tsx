@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useTranslation } from 'react-i18next'
 import { getPrivacyPolicy } from './api'
+import { DOGCHAT_PRIVACY_POLICY } from './default-documents'
 import { LegalDocument } from './legal-document'
 
 export function PrivacyPolicy() {
@@ -30,6 +31,7 @@ export function PrivacyPolicy() {
       emptyMessage={t(
         'The administrator has not configured a privacy policy yet.'
       )}
+      fallbackContent={DOGCHAT_PRIVACY_POLICY}
     />
   )
 }

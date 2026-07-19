@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useTranslation } from 'react-i18next'
 import { getUserAgreement } from './api'
+import { DOGCHAT_USER_AGREEMENT } from './default-documents'
 import { LegalDocument } from './legal-document'
 
 export function UserAgreement() {
@@ -30,6 +31,7 @@ export function UserAgreement() {
       emptyMessage={t(
         'The administrator has not configured a user agreement yet.'
       )}
+      fallbackContent={DOGCHAT_USER_AGREEMENT}
     />
   )
 }

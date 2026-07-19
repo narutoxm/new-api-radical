@@ -64,6 +64,7 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 	if request == nil {
 		return nil, errors.New("request is nil")
 	}
+	sanitizeGrok45ChatRequest(info, request)
 	if strings.HasSuffix(info.UpstreamModelName, "-search") {
 		info.UpstreamModelName = strings.TrimSuffix(info.UpstreamModelName, "-search")
 		request.Model = info.UpstreamModelName
@@ -89,6 +90,30 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 		info.UpstreamModelName = request.Model
 	}
 	return request, nil
+}
+
+func sanitizeGrok45ChatRequest(info *relaycommon.RelayInfo, request *dto.GeneralOpenAIRequest) {
+	if request == nil {
+		return
+	}
+	modelName := request.Model
+	if modelName == "" && info != nil {
+		modelName = info.UpstreamModelName
+	}
+	modelName = strings.TrimSuffix(modelName, "-search")
+	if !strings.HasPrefix(modelName, "grok-4.5") {
+		return
+	}
+
+	// xAI Grok 4.5 is a reasoning model. Its chat completions endpoint rejects
+	// several legacy chat sampling fields even when they are explicitly set to
+	// their default zero values. The playground sends those defaults by default,
+	// so strip them at the xAI boundary to keep normal chat requests usable.
+	request.FrequencyPenalty = nil
+	request.PresencePenalty = nil
+	request.Stop = nil
+	request.LogProbs = nil
+	request.TopLogProbs = nil
 }
 
 func (a *Adaptor) ConvertRerankRequest(c *gin.Context, relayMode int, request dto.RerankRequest) (any, error) {
