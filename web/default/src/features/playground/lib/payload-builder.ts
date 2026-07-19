@@ -24,6 +24,17 @@ import type {
 } from '../types'
 import { formatMessageForAPI, isValidMessage } from './message-utils'
 
+const GROK_45_UNSUPPORTED_PARAMETERS = new Set<keyof ParameterEnabled>([
+  'frequency_penalty',
+  'presence_penalty',
+])
+
+function shouldSkipParameter(model: string, key: keyof ParameterEnabled) {
+  return (
+    model.startsWith('grok-4.5') && GROK_45_UNSUPPORTED_PARAMETERS.has(key)
+  )
+}
+
 /**
  * Build API request payload from messages and config
  */
@@ -55,6 +66,9 @@ export function buildChatCompletionPayload(
   ]
 
   parameterKeys.forEach((key) => {
+    if (shouldSkipParameter(config.model, key)) {
+      return
+    }
     if (parameterEnabled[key]) {
       const value = config[key as keyof PlaygroundConfig]
       if (value !== undefined && value !== null) {

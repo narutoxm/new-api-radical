@@ -230,6 +230,7 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 	if request == nil {
 		return nil, errors.New("request is nil")
 	}
+	sanitizeGrok45OpenAIRequest(info, request)
 	if info.ChannelType != constant.ChannelTypeOpenAI && info.ChannelType != constant.ChannelTypeAzure {
 		request.StreamOptions = nil
 	}
@@ -598,6 +599,25 @@ func (a *Adaptor) ConvertOpenAIResponsesRequest(c *gin.Context, info *relaycommo
 		info.ReasoningEffort = request.Reasoning.Effort
 	}
 	return request, nil
+}
+
+func sanitizeGrok45OpenAIRequest(info *relaycommon.RelayInfo, request *dto.GeneralOpenAIRequest) {
+	if request == nil {
+		return
+	}
+	modelName := request.Model
+	if modelName == "" && info != nil {
+		modelName = info.UpstreamModelName
+	}
+	modelName = strings.TrimSuffix(modelName, "-search")
+	if !strings.HasPrefix(modelName, "grok-4.5") {
+		return
+	}
+	request.FrequencyPenalty = nil
+	request.PresencePenalty = nil
+	request.Stop = nil
+	request.LogProbs = nil
+	request.TopLogProbs = nil
 }
 
 func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, requestBody io.Reader) (any, error) {
