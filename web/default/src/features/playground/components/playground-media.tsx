@@ -155,6 +155,26 @@ function supportsReferenceImages(model: string) {
   )
 }
 
+function usesSingleImageRequests(model: string) {
+  return supportsReferenceImages(model)
+}
+
+async function sendGPTImageRequest(
+  payload: ImageGenerationRequest,
+  referenceImages: ReferenceImage[]
+) {
+  const singlePayload = { ...payload }
+  delete singlePayload.n
+
+  if (referenceImages.length > 0) {
+    return await sendImageEdit(
+      createImageEditFormData(singlePayload, referenceImages)
+    )
+  }
+
+  return await sendImageGeneration(singlePayload)
+}
+
 function createReferenceImageId() {
   return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`
 }
@@ -235,13 +255,18 @@ function PlaygroundImage({
         aspect_ratio: imageRatio,
         response_format: 'url',
       }
-      const response =
-        canUseReferenceImages && referenceImages.length > 0
-          ? await sendImageEdit(
-              createImageEditFormData(payload, referenceImages)
-            )
-          : await sendImageGeneration(payload)
-      setImages(response.data || [])
+      if (usesSingleImageRequests(selectedModel)) {
+        const count = Number(imageCount)
+        const responses = await Promise.all(
+          Array.from({ length: count }, () =>
+            sendGPTImageRequest(payload, referenceImages)
+          )
+        )
+        setImages(responses.flatMap((response) => response.data || []))
+      } else {
+        const response = await sendImageGeneration(payload)
+        setImages(response.data || [])
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : t('Image generation failed')

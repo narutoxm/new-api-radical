@@ -551,6 +551,7 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 		return &requestBody, nil
 
 	default:
+		sanitizeGPTImageOpenAIRequest(info, &request)
 		return request, nil
 	}
 }
@@ -618,6 +619,27 @@ func sanitizeGrok45OpenAIRequest(info *relaycommon.RelayInfo, request *dto.Gener
 	request.Stop = nil
 	request.LogProbs = nil
 	request.TopLogProbs = nil
+}
+
+func sanitizeGPTImageOpenAIRequest(info *relaycommon.RelayInfo, request *dto.ImageRequest) {
+	if request == nil {
+		return
+	}
+	modelName := request.Model
+	if modelName == "" && info != nil {
+		modelName = info.UpstreamModelName
+	}
+	normalizedModel := strings.TrimSpace(strings.ToLower(modelName))
+	if normalizedModel != "gpt-image-2" && normalizedModel != "gpt-image-1.5" {
+		return
+	}
+	if request.N == nil {
+		return
+	}
+	request.N = nil
+	if info != nil && info.PriceData.UsePrice {
+		info.PriceData.AddOtherRatio("n", 1)
+	}
 }
 
 func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, requestBody io.Reader) (any, error) {
