@@ -79,6 +79,13 @@ interface ReferenceImage {
 const imageRatios = ['1:1', '16:9', '9:16', '4:3', '3:4'] as const
 const imageResolutions = ['2K', '4K'] as const
 const imageCounts = ['1', '2', '4'] as const
+const seseAIModels = [
+  'z-image',
+  'wai',
+  'Pony-3',
+  'R-1.5',
+  'Turbo-3.5',
+] as const
 const referenceImageModels = ['gpt-image-2', 'gpt-image-1.5'] as const
 const maxReferenceImages = 5
 const imageRatioDimensions: Record<
@@ -153,6 +160,10 @@ function supportsReferenceImages(model: string) {
   return referenceImageModels.some(
     (supportedModel) => supportedModel === normalizedModel
   )
+}
+
+function supportsSeseAIModelSelector(model: string) {
+  return model.trim().toLowerCase() === 'sese-image'
 }
 
 function usesSingleImageRequests(model: string) {
@@ -230,6 +241,8 @@ function PlaygroundImage({
     useState<(typeof imageResolutions)[number]>('2K')
   const [imageCount, setImageCount] =
     useState<(typeof imageCounts)[number]>('1')
+  const [seseAIModel, setSeseAIModel] =
+    useState<(typeof seseAIModels)[number]>('z-image')
   const [isGenerating, setIsGenerating] = useState(false)
   const [images, setImages] = useState<ImageGenerationData[]>([])
   const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([])
@@ -238,6 +251,7 @@ function PlaygroundImage({
   const selectedModel = getPreferredImageModel(imageModels, modelValue)
   const hasModels = imageModels.length > 0
   const canUseReferenceImages = supportsReferenceImages(selectedModel)
+  const canSelectSeseAIModel = supportsSeseAIModelSelector(selectedModel)
   const isSubmitDisabled = !hasModels || !prompt.trim() || isGenerating
 
   const handleGenerate = async () => {
@@ -254,6 +268,9 @@ function PlaygroundImage({
         size: imageSize,
         aspect_ratio: imageRatio,
         response_format: 'url',
+      }
+      if (canSelectSeseAIModel) {
+        payload.sese_model = seseAIModel
       }
       if (usesSingleImageRequests(selectedModel)) {
         const count = Number(imageCount)
@@ -409,6 +426,18 @@ function PlaygroundImage({
                 }
               />
             </div>
+
+            {canSelectSeseAIModel && (
+              <MediaSelect
+                disabled={isGenerating}
+                label={t('SeseAI model')}
+                options={seseAIModels}
+                value={seseAIModel}
+                onValueChange={(value) =>
+                  setSeseAIModel(value as typeof seseAIModel)
+                }
+              />
+            )}
 
             {canUseReferenceImages && (
               <ReferenceImagesInput

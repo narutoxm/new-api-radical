@@ -4611,6 +4611,7 @@
     "gpt-image-2 and gpt-image-1.5 support reference images. Add up to 5 images.": "gpt-image-2 and gpt-image-1.5 support reference images. Add up to 5 images.",
     "Only JPEG, PNG, and WebP images are supported": "Only JPEG, PNG, and WebP images are supported",
     "You can add up to {{count}} reference images": "You can add up to {{count}} reference images",
-    "Your image is being generated": "Your image is being generated"
+    "Your image is being generated": "Your image is being generated",
+    "SeseAI model": "SeseAI model"
   }
 }

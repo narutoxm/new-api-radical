@@ -115,6 +115,7 @@ export interface ImageGenerationRequest {
   quality?: string
   aspect_ratio?: string
   response_format?: 'url' | 'b64_json'
+  sese_model?: string
 }
 
 export interface ImageGenerationResponse {

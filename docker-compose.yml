@@ -1,6 +1,6 @@
 services:
   new-api-radical:
-    image: ghcr.io/narutoxm/new-api-radical:v1.0.24
+    image: ghcr.io/narutoxm/new-api-radical:v1.0.25
     container_name: new-api-radical
     restart: unless-stopped
     command: --log-dir /app/logs

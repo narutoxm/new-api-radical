@@ -4611,6 +4611,7 @@
     "gpt-image-2 and gpt-image-1.5 support reference images. Add up to 5 images.": "gpt-image-2 和 gpt-image-1.5 支持参考图像，最多添加 5 张。",
     "Only JPEG, PNG, and WebP images are supported": "仅支持 JPEG、PNG 和 WebP 图片",
     "You can add up to {{count}} reference images": "最多可添加 {{count}} 张参考图",
-    "Your image is being generated": "图像正在生成中"
+    "Your image is being generated": "图像正在生成中",
+    "SeseAI model": "SeseAI 模型"
   }
 }

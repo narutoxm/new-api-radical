@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -24,21 +23,9 @@ import (
 type Adaptor struct{}
 
 type generateRequest struct {
-	Prompt string `json:"prompt,omitempty"`
-	Width  int    `json:"width,omitempty"`
-	Height int    `json:"height,omitempty"`
-	Steps  *int   `json:"steps,omitempty"`
-	Seed   *int   `json:"seed,omitempty"`
-	Raw    bool   `json:"raw,omitempty"`
-	Items  []item `json:"items,omitempty"`
-}
-
-type item struct {
-	Prompt string `json:"prompt"`
-	Width  int    `json:"width,omitempty"`
-	Height int    `json:"height,omitempty"`
-	Steps  *int   `json:"steps,omitempty"`
-	Seed   *int   `json:"seed,omitempty"`
+	Model  string   `json:"model"`
+	Prompt string   `json:"prompt,omitempty"`
+	Items  []string `json:"items,omitempty"`
 }
 
 type generateResponse struct {
@@ -85,9 +72,10 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 		return nil, errors.New("seseai channel: prompt is required")
 	}
 
-	width, height := dimensionsFromImageRequest(request)
-	steps := optionalIntFromExtra(request.Extra, "steps")
-	seed := optionalIntFromExtra(request.Extra, "seed")
+	modelName, err := resolveSeseAIModel(request)
+	if err != nil {
+		return nil, err
+	}
 	n := 1
 	if request.N != nil && *request.N > 0 {
 		n = int(*request.N)
@@ -96,64 +84,31 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 
 	if n <= 1 {
 		return generateRequest{
+			Model:  modelName,
 			Prompt: prompt,
-			Width:  width,
-			Height: height,
-			Steps:  steps,
-			Seed:   seed,
-			Raw:    false,
 		}, nil
 	}
 
-	items := make([]item, 0, n)
+	items := make([]string, 0, n)
 	for i := 0; i < n; i++ {
-		items = append(items, item{
-			Prompt: prompt,
-			Width:  width,
-			Height: height,
-			Steps:  steps,
-			Seed:   seed,
-		})
+		items = append(items, prompt)
 	}
-	return generateRequest{Items: items}, nil
+	return generateRequest{Model: modelName, Items: items}, nil
 }
 
-func dimensionsFromImageRequest(request dto.ImageRequest) (int, int) {
-	size := strings.TrimSpace(request.Size)
-	if size == "" || strings.EqualFold(size, "auto") || strings.EqualFold(size, "1k") {
-		return dimensionsByAspectRatio(request, 1024)
+func resolveSeseAIModel(request dto.ImageRequest) (string, error) {
+	modelName := strings.TrimSpace(stringFromExtra(request.Extra, "sese_model"))
+	if modelName == "" {
+		modelName = strings.TrimSpace(stringFromExtra(request.Extra, "seseai_model"))
 	}
-	switch strings.ToLower(size) {
-	case "2k":
-		return dimensionsByAspectRatio(request, 2048)
-	case "4k":
-		return dimensionsByAspectRatio(request, 4096)
+	if modelName == "" {
+		modelName = "z-image"
 	}
-	parts := strings.Split(size, "x")
-	if len(parts) != 2 {
-		return 1024, 1024
-	}
-	width, widthErr := strconv.Atoi(strings.TrimSpace(parts[0]))
-	height, heightErr := strconv.Atoi(strings.TrimSpace(parts[1]))
-	if widthErr != nil || heightErr != nil || width <= 0 || height <= 0 {
-		return 1024, 1024
-	}
-	return width, height
-}
-
-func dimensionsByAspectRatio(request dto.ImageRequest, base int) (int, int) {
-	aspectRatio := strings.TrimSpace(stringFromExtra(request.Extra, "aspect_ratio"))
-	switch aspectRatio {
-	case "16:9":
-		return base, base * 9 / 16
-	case "9:16":
-		return base * 9 / 16, base
-	case "4:3":
-		return base, base * 3 / 4
-	case "3:4":
-		return base * 3 / 4, base
+	switch modelName {
+	case "z-image", "wai", "Pony-3", "R-1.5", "Turbo-3.5":
+		return modelName, nil
 	default:
-		return base, base
+		return "", fmt.Errorf("seseai channel: unsupported model %q", modelName)
 	}
 }
 
@@ -167,18 +122,6 @@ func stringFromExtra(extra map[string]json.RawMessage, key string) string {
 		return ""
 	}
 	return val
-}
-
-func optionalIntFromExtra(extra map[string]json.RawMessage, key string) *int {
-	raw, ok := extra[key]
-	if !ok || raw == nil {
-		return nil
-	}
-	var val int
-	if err := common.Unmarshal(raw, &val); err != nil {
-		return nil
-	}
-	return &val
 }
 
 func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, requestBody io.Reader) (any, error) {
