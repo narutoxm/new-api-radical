@@ -21,8 +21,6 @@ import { type Row } from '@tanstack/react-table'
 import {
   Trash2,
   Edit,
-  Power,
-  PowerOff,
   ExternalLink,
   ArrowRightLeft,
   Copy,
@@ -196,7 +194,7 @@ export function DataTableRowActions<TData>({
           render={
             <Button
               variant='ghost'
-              size='icon-sm'
+              size='sm'
               onClick={handleToggleStatus}
               disabled={isTogglingStatus}
               aria-label={isEnabled ? t('Disable') : t('Enable')}
@@ -209,11 +207,14 @@ export function DataTableRowActions<TData>({
           }
         >
           {isTogglingStatus ? (
-            <Loader2 className='size-4 animate-spin' />
+            <>
+              <Loader2 data-icon='inline-start' className='animate-spin' />
+              {isEnabled ? t('Disable') : t('Enable')}
+            </>
           ) : isEnabled ? (
-            <PowerOff className='size-4' />
+            t('Disable')
           ) : (
-            <Power className='size-4' />
+            t('Enable')
           )}
         </TooltipTrigger>
         <TooltipContent>
